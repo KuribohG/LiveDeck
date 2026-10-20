@@ -1,0 +1,52 @@
+{
+  "format": "live-deck",
+  "version": 1,
+  "id": "named-terminal-tabs-v1",
+  "title": "前后台独立终端",
+  "terminals": {
+    "host": {
+      "label": "HOST",
+      "tabs": {
+        "main": {
+          "label": "前台"
+        },
+        "background": {
+          "label": "后台"
+        }
+      },
+      "commands": [
+        {
+          "id": "watch",
+          "title": "后台观察",
+          "command": "for i in 1 2 3; do date; sleep 1; done",
+          "tab": "background"
+        },
+        {
+          "id": "status",
+          "title": "前台操作",
+          "command": "pwd",
+          "tab": "main"
+        }
+      ]
+    }
+  },
+  "slides": [
+    {
+      "type": "terminal",
+      "title": "前后台任务",
+      "terminal": "host"
+    }
+  ],
+  "sequence": [
+    {
+      "panel": "host",
+      "command": "watch",
+      "tab": "background"
+    },
+    {
+      "panel": "host",
+      "command": "status",
+      "tab": "main"
+    }
+  ]
+}

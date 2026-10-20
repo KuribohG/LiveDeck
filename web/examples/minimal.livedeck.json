@@ -1,0 +1,76 @@
+{
+  "$schema": "https://raw.githubusercontent.com/KuribohG/LiveDeck/main/web/live-deck.schema.json",
+  "format": "live-deck",
+  "version": 1,
+  "id": "my-first-live-deck",
+  "title": "介绍、执行、继续执行",
+  "terminals": {
+    "shell-a": {
+      "label": "Terminal A",
+      "commands": [
+        {
+          "id": "set",
+          "title": "保留一个变量",
+          "command": "export DEMO_MESSAGE=\"hello from A\"",
+          "note": "在本页运行后，下一张终端页仍能读取。"
+        },
+        {
+          "id": "read",
+          "title": "读取同一变量",
+          "command": "printf \"%s\\n\" \"$DEMO_MESSAGE\""
+        }
+      ]
+    },
+    "shell-b": {
+      "label": "Terminal B",
+      "commands": [
+        {
+          "id": "independent",
+          "title": "验证独立 Shell",
+          "command": "printf \"%s\\n\" \"${DEMO_MESSAGE-unset}\""
+        }
+      ]
+    }
+  },
+  "slides": [
+    {
+      "type": "slide",
+      "title": "介绍",
+      "markdown": "这是一份 **Live Deck v1** 文件。"
+    },
+    {
+      "type": "terminal",
+      "title": "设置变量",
+      "terminal": "shell-a"
+    },
+    {
+      "type": "slide",
+      "title": "解释状态共享",
+      "markdown": "相同终端 ID 复用 Shell；跨页保持变量、目录和进程。"
+    },
+    {
+      "type": "terminal",
+      "title": "继续 Terminal A",
+      "terminal": "shell-a"
+    },
+    {
+      "type": "terminal",
+      "title": "切换到 Terminal B",
+      "terminal": "shell-b"
+    }
+  ],
+  "sequence": [
+    {
+      "panel": "shell-a",
+      "command": "set"
+    },
+    {
+      "panel": "shell-a",
+      "command": "read"
+    },
+    {
+      "panel": "shell-b",
+      "command": "independent"
+    }
+  ]
+}

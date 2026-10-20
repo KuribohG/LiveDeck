@@ -1,0 +1,138 @@
+{
+  "format": "live-deck",
+  "version": 1,
+  "id": "live-demo-multi-panel",
+  "title": "同一现场，三个视角",
+  "terminals": {
+    "runner": {
+      "label": "01 · 运行命令",
+      "cwd": "{{LIVE_DECK_WORKSPACES}}/multi-run",
+      "commands": [
+        {
+          "id": "prepare",
+          "title": "准备日志文件",
+          "command": ": > live-demo.log",
+          "note": "先在空闲的 Shell 提示符执行。之后启动日志观察。"
+        },
+        {
+          "id": "run",
+          "title": "运行 60 秒，持续产生输出",
+          "command": "python3 -u -c 'import time; f=open(\"live-demo.log\", \"a\", buffering=1); [(print(s := f\"tick={i} time={time.time():.3f}\", flush=True), f.write(s+\"\\n\"), time.sleep(1)) for i in range(60)]'",
+          "note": "执行后可以继续切换面板、看图表。示例输出不代表 Grafana 看板的业务负载。"
+        },
+        {
+          "id": "check",
+          "title": "执行结束后核对结果",
+          "command": "wc -l live-demo.log",
+          "note": "等命令结束，或 Ctrl+C 停止后，再输入下一条。"
+        }
+      ]
+    },
+    "logs": {
+      "label": "03 · 实时日志",
+      "cwd": "{{LIVE_DECK_WORKSPACES}}/multi-logs",
+      "commands": [
+        {
+          "id": "follow",
+          "title": "持续跟随日志",
+          "command": "tail -n 20 -F {{LIVE_DECK_WORKSPACES}}/multi-run/live-demo.log",
+          "note": "保持运行；Ctrl+C 结束日志跟随。"
+        },
+        {
+          "id": "last",
+          "title": "查看最后 10 行",
+          "command": "tail -n 10 {{LIVE_DECK_WORKSPACES}}/multi-run/live-demo.log",
+          "note": "先 Ctrl+C 退出 tail -F，再执行。"
+        },
+        {
+          "id": "count",
+          "title": "检查日志行数",
+          "command": "wc -l {{LIVE_DECK_WORKSPACES}}/multi-run/live-demo.log"
+        }
+      ]
+    }
+  },
+  "dashboards": {
+    "metrics": {
+      "label": "02 · Grafana",
+      "url": "https://grafana.example.com/d/my-dashboard/overview?from=now-15m&to=now&kiosk=1&refresh=10s",
+      "commands": [
+        {
+          "id": "recent",
+          "title": "观察最近 15 分钟",
+          "command": "https://grafana.example.com/d/my-dashboard/overview?from=now-15m&to=now&kiosk=1&refresh=10s",
+          "note": "示例为 Grafana 看板。替换为本次 demo 对应服务的 dashboard / panel 链接。首次使用可点新窗登录。"
+        },
+        {
+          "id": "hour",
+          "title": "切换到最近 1 小时",
+          "command": "https://grafana.example.com/d/my-dashboard/overview?from=now-1h&to=now&kiosk=1&refresh=10s"
+        }
+      ]
+    }
+  },
+  "slides": [
+    {
+      "type": "slide",
+      "title": "同一现场，三个视角。",
+      "kicker": "LIVE DECK / MULTI-PANEL",
+      "markdown": "运行命令、观察图表、跟随日志，保持在同一个画面。\n\n每个面板有自己的候选池；**顶部总顺序**提示下一步该切到哪里。点候选只选择，填入后仍由你按回车执行。"
+    },
+    {
+      "type": "workspace",
+      "title": "运行 · 指标 · 日志",
+      "panels": [
+        "runner",
+        "metrics",
+        "logs"
+      ],
+      "layout": "columns"
+    },
+    {
+      "type": "slide",
+      "title": "回到讲解，进程继续运行。",
+      "markdown": "翻页保留终端连接和 Shell 状态。下一页复用这三个面板。\n\n总顺序可以跳过、回退；临时操作后，点顶部 **下一步** 返回计划。"
+    },
+    {
+      "type": "workspace",
+      "title": "继续观察同一组会话",
+      "panels": [
+        "runner",
+        "metrics",
+        "logs"
+      ],
+      "layout": "focus"
+    }
+  ],
+  "sequence": [
+    {
+      "panel": "runner",
+      "command": "prepare"
+    },
+    {
+      "panel": "logs",
+      "command": "follow"
+    },
+    {
+      "panel": "runner",
+      "command": "run"
+    },
+    {
+      "panel": "metrics",
+      "command": "recent"
+    },
+    {
+      "panel": "metrics",
+      "command": "hour"
+    },
+    {
+      "panel": "runner",
+      "command": "check"
+    },
+    {
+      "panel": "logs",
+      "command": "last"
+    }
+  ],
+  "$schema": "https://raw.githubusercontent.com/KuribohG/LiveDeck/main/web/live-deck.schema.json"
+}

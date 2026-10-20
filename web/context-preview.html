@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>运行参数预览</title>
+<style>
+:root{color-scheme:dark}body{margin:0;padding:16px 20px;background:#121b28;color:#dce5f2;font:12px/1.55 system-ui,sans-serif}h2{font-size:16px;margin:0 0 5px;color:#b7f5ca}p{color:#8da0ba;margin:0 0 12px;font-size:11px}dl{display:grid;grid-template-columns:max-content 1fr;gap:6px 14px;margin:0}dt{color:#8da0ba}dd{margin:0;font:11px/1.6 monospace;overflow-wrap:anywhere}a{color:#b7f5ca}
+</style>
+<h2 id="title">运行参数预览</h2><p>展示左侧真实进程传来的 URL 参数；此页不是 Grafana，也不展示监控指标。</p><dl id="fields"></dl>
+<script>
+const params=new URL(location.href).searchParams;
+document.getElementById('title').textContent=params.get('title') || '运行参数预览';
+for(const [key,value] of params){if(key==='title')continue;const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=key;dd.textContent=key==='from' && /^\d+$/.test(value) ? new Date(Number(value)).toLocaleString()+' ('+value+')' : value;document.getElementById('fields').append(dt,dd);}
+</script></html>

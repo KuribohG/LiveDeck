@@ -1,0 +1,11 @@
+.runtime/
+artifacts/
+__pycache__/
+*.py[cod]
+node_modules/
+.venv/
+.env
+.env.*
+backend/local-settings.json
+web/deployment.json
+workspaces/

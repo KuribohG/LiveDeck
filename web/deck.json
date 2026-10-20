@@ -1,0 +1,324 @@
+{
+  "format": "live-deck",
+  "version": 1,
+  "id": "live-demo-first-deck",
+  "title": "现场演示 · 从讲解到真实运行",
+  "terminals": {
+    "terminal-1": {
+      "label": "Terminal 1",
+      "cwd": "{{LIVE_DECK_WORKSPACES}}/terminal-1",
+      "commands": [
+        {
+          "title": "确认工作目录",
+          "command": "pwd",
+          "note": "每个终端从各自的演示目录开始。"
+        },
+        {
+          "title": "设置会话变量",
+          "command": "export DEMO_MESSAGE='Hello from Terminal 1'",
+          "note": "这个变量只属于 Terminal 1。"
+        },
+        {
+          "title": "读取会话变量",
+          "command": "echo \"$DEMO_MESSAGE\"",
+          "note": "翻到第四页后再执行，值仍然保留。"
+        },
+        {
+          "title": "查看 Shell 进程",
+          "command": "echo \"shell pid=$$\"",
+          "note": "第四页仍是同一个 Shell PID。"
+        },
+        {
+          "title": "查看目录内容",
+          "command": "ls -lah",
+          "note": "这里是本演示专用的工作目录。"
+        },
+        {
+          "title": "查看系统版本",
+          "command": "uname -sr",
+          "note": "命令在当前 Linux 机器上真实运行。"
+        },
+        {
+          "title": "查看 Python 版本",
+          "command": "python3 --version",
+          "note": "确认演示依赖。"
+        },
+        {
+          "title": "查看当前时间",
+          "command": "date -Is",
+          "note": "每次输出来自真实执行。"
+        },
+        {
+          "title": "生成一份输入数据",
+          "command": "printf 'apple\\nbanana\\napple\\npear\\nbanana\\n' > fruit.txt",
+          "note": "仅写入当前演示目录中的 fruit.txt。"
+        },
+        {
+          "title": "读取输入数据",
+          "command": "cat fruit.txt",
+          "note": "查看刚刚生成的真实文件。"
+        },
+        {
+          "title": "统计行数",
+          "command": "wc -l fruit.txt",
+          "note": "预期为 5 行。"
+        },
+        {
+          "title": "排序数据",
+          "command": "sort fruit.txt",
+          "note": "观察排序结果。"
+        },
+        {
+          "title": "按值去重",
+          "command": "sort -u fruit.txt",
+          "note": "预期有 3 种水果。"
+        },
+        {
+          "title": "统计出现次数",
+          "command": "sort fruit.txt | uniq -c",
+          "note": "把管道的每一步连起来看。"
+        },
+        {
+          "title": "查找指定行",
+          "command": "grep -n apple fruit.txt",
+          "note": "展示匹配行及行号。"
+        },
+        {
+          "title": "读取前两行",
+          "command": "head -n 2 fruit.txt",
+          "note": "按需截取。"
+        },
+        {
+          "title": "读取最后两行",
+          "command": "tail -n 2 fruit.txt",
+          "note": "查看文件末尾。"
+        },
+        {
+          "title": "显示文件元数据",
+          "command": "stat fruit.txt",
+          "note": "观察真实大小与修改时间。"
+        },
+        {
+          "title": "计算校验值",
+          "command": "sha256sum fruit.txt",
+          "note": "固定数据可以重复得到相同校验值。"
+        },
+        {
+          "title": "复制一份对照数据",
+          "command": "cp fruit.txt fruit-copy.txt",
+          "note": "创建对照文件。"
+        },
+        {
+          "title": "比较两份数据",
+          "command": "cmp fruit.txt fruit-copy.txt && echo identical",
+          "note": "相同文件应输出 identical。"
+        },
+        {
+          "title": "追加一行数据",
+          "command": "printf 'orange\\n' >> fruit-copy.txt",
+          "note": "只修改对照文件。"
+        },
+        {
+          "title": "查看差异",
+          "command": "diff -u fruit.txt fruit-copy.txt",
+          "note": "有差异时 diff 返回非零是正常现象。"
+        },
+        {
+          "title": "计算一段数列",
+          "command": "seq 1 10",
+          "note": "生成可复现的小数据集。"
+        },
+        {
+          "title": "汇总数列",
+          "command": "seq 1 10 | awk '{s += $1} END {print s}'",
+          "note": "预期总和为 55。"
+        },
+        {
+          "title": "查看当前变量声明",
+          "command": "declare -p DEMO_MESSAGE",
+          "note": "变量状态保留在当前 Shell。"
+        },
+        {
+          "title": "定义另一个变量",
+          "command": "BATCH_SIZE=16",
+          "note": "用于演示临时调整参数。"
+        },
+        {
+          "title": "使用变量",
+          "command": "echo \"batch size: $BATCH_SIZE\"",
+          "note": "可以现场编辑参数。"
+        },
+        {
+          "title": "修改参数",
+          "command": "BATCH_SIZE=64",
+          "note": "真实改变当前 Shell 状态。"
+        },
+        {
+          "title": "再次查看参数",
+          "command": "echo \"batch size: $BATCH_SIZE\"",
+          "note": "预期变为 64。"
+        },
+        {
+          "title": "执行 Python 表达式",
+          "command": "python3 -c 'print(sum(range(1, 11)))'",
+          "note": "用另一种方式验证 55。"
+        },
+        {
+          "title": "输出一份 JSON",
+          "command": "python3 -c 'import json; print(json.dumps({\"batch\":64,\"items\":1000}))'",
+          "note": "展示结构化结果。"
+        },
+        {
+          "title": "格式化 JSON",
+          "command": "echo '{\"batch\":64,\"items\":1000}' | python3 -m json.tool",
+          "note": "以便向观众解释字段。"
+        },
+        {
+          "title": "测量短计算耗时",
+          "command": "time python3 -c 'sum(range(1000000))'",
+          "note": "耗时是真实测量，每次可能不同。"
+        },
+        {
+          "title": "实时显示进度",
+          "command": "for i in 1 2 3; do echo \"progress: $i/3\"; sleep 1; done",
+          "note": "三秒内逐行输出，可以观察实时性。"
+        },
+        {
+          "title": "查看命令退出码",
+          "command": "echo \"exit status: $?\"",
+          "note": "紧接上一个命令查看退出码。"
+        },
+        {
+          "title": "演示预期失败",
+          "command": "false; echo \"exit status: $?\"",
+          "note": "失败退出码为 1。"
+        },
+        {
+          "title": "检查文件存在",
+          "command": "test -f fruit.txt && echo file-exists",
+          "note": "判断输入数据是否准备好。"
+        },
+        {
+          "title": "展示文件的字节数",
+          "command": "wc -c fruit.txt",
+          "note": "数据大小来自实际文件。"
+        },
+        {
+          "title": "查看当前进程信息",
+          "command": "ps -p $$ -o pid,ppid,comm",
+          "note": "可以和另一个终端的 PID 比较。"
+        },
+        {
+          "title": "展示 PATH 中的程序",
+          "command": "command -v python3",
+          "note": "确认实际使用的程序路径。"
+        },
+        {
+          "title": "定义 Shell 函数",
+          "command": "demo_greet() { echo \"hello $1\"; }",
+          "note": "函数也属于当前 Shell 状态。"
+        },
+        {
+          "title": "调用刚才的函数",
+          "command": "demo_greet audience",
+          "note": "预期输出 hello audience。"
+        },
+        {
+          "title": "查看函数定义",
+          "command": "declare -f demo_greet",
+          "note": "同一终端跨页后仍可查看。"
+        },
+        {
+          "title": "写入参数记录",
+          "command": "printf \"%s\\n\" \"$BATCH_SIZE\" > batch-size.txt",
+          "note": "把当前参数存入演示目录。"
+        },
+        {
+          "title": "检查参数记录",
+          "command": "cat batch-size.txt",
+          "note": "把内存中的变量和文件记录对照。"
+        },
+        {
+          "title": "统计单词频率",
+          "command": "tr \" \" \"\\n\" < fruit.txt | sort | uniq -c",
+          "note": "组合已有工具。"
+        },
+        {
+          "title": "再次检查输入校验值",
+          "command": "sha256sum fruit.txt",
+          "note": "输入文件没有变化时校验值一致。"
+        },
+        {
+          "title": "回顾会话变量",
+          "command": "echo \"message=$DEMO_MESSAGE batch=$BATCH_SIZE pid=$$\"",
+          "note": "回顾该终端累积的上下文。"
+        },
+        {
+          "title": "结束当前演示段",
+          "command": "echo \"Ready for questions.\"",
+          "note": "可以继续自由输入或向 AI 提问。"
+        }
+      ]
+    },
+    "terminal-2": {
+      "label": "Terminal 2",
+      "cwd": "{{LIVE_DECK_WORKSPACES}}/terminal-2",
+      "commands": [
+        {
+          "title": "确认独立工作目录",
+          "command": "pwd",
+          "note": "这里与 Terminal 1 的初始目录不同。"
+        },
+        {
+          "title": "检查变量隔离",
+          "command": "echo \"${DEMO_MESSAGE:-Terminal 2 has no DEMO_MESSAGE}\"",
+          "note": "Terminal 1 的变量不会传到这个 Shell。"
+        },
+        {
+          "title": "检查独立进程",
+          "command": "echo \"shell pid=$$\"",
+          "note": "该 PID 与 Terminal 1 不同。"
+        },
+        {
+          "title": "设置自己的变量",
+          "command": "export DEMO_MESSAGE='Hello from Terminal 2'",
+          "note": "这不会覆盖 Terminal 1 的变量。"
+        },
+        {
+          "title": "读取自己的变量",
+          "command": "echo \"$DEMO_MESSAGE\"",
+          "note": "随后切回第二页或第四页做对照。"
+        }
+      ]
+    }
+  },
+  "slides": [
+    {
+      "type": "slide",
+      "kicker": "LIVE DEMO / GET STARTED",
+      "title": "让演示，现场发生。",
+      "markdown": "讲解、运行、追问，都在同一份演示里。\n\n- **第 2 页** · 进入 Terminal 1，设置一个变量\n- **第 3 页** · 回到讲解\n- **第 4 页** · 回到同一个 Terminal 1，继续操作\n- **第 5 页** · 打开独立的 Terminal 2\n\n右上角可以编辑幻灯片和命令清单。"
+    },
+    {
+      "type": "terminal",
+      "terminal": "terminal-1",
+      "title": "Terminal 1 · 开始真实操作"
+    },
+    {
+      "type": "slide",
+      "kicker": "SAME SESSION / KEEP GOING",
+      "title": "翻过一页，现场还在。",
+      "markdown": "刚才的终端会话一直保留。\n\n回到下一页，再运行 `echo \"$DEMO_MESSAGE\"`。\n\n工作目录、变量、运行中的进程和终端输出，都会继续留在 **Terminal 1**。\n\n命令清单只是提词器，你可以随时临场发挥。"
+    },
+    {
+      "type": "terminal",
+      "terminal": "terminal-1",
+      "title": "Terminal 1 · 继续刚才的现场"
+    },
+    {
+      "type": "terminal",
+      "terminal": "terminal-2",
+      "title": "Terminal 2 · 独立的另一段演示"
+    }
+  ]
+}

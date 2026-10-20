@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Live Deck · 现场演示</title>
+  <link rel="stylesheet" href="./vendor/reveal.css">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body class="top-toolbar-hidden bottom-toolbar-hidden">
+  <button id="toggle-top-toolbar" class="toolbar-toggle toolbar-toggle-top" aria-expanded="false" aria-controls="top-toolbar" aria-label="展开顶部工具栏" title="展开顶部工具栏">顶部工具 ▾</button>
+  <header id="top-toolbar" class="topbar">
+    <a class="brand" href="#/0" aria-label="回到第一页"><span class="brand-icon">▰</span> LIVE DECK <span class="edition">LAB</span></a>
+    <span class="deck-title" id="deck-title">现场演示</span>
+    <nav class="top-actions">
+      <a class="example-link" href="./docs/index.html" target="_blank" rel="noopener">编写规范 ↗</a>
+      <a class="example-link" href="?deck=multi-panel#/0">分屏示例 ↗</a><button id="edit-deck" class="quiet">编辑演示</button>
+      <a class="example-link" href="?deck=monitoring#/0">监控联动 ↗</a>
+      <button id="export-deck" class="quiet">导出</button>
+      <button id="reset-progress" class="quiet" title="重置步骤并回到第一页；关闭全部临时 tab，重启全部固定 tab；保留文稿和 AI 对话">重置进度</button>
+      <button id="fullscreen" class="quiet">全屏 ↗</button>
+    </nav>
+  </header>
+
+  <main id="stage">
+    <div class="reveal"><div class="slides" id="slides"></div></div>
+    <section class="workbench" id="workbench" hidden aria-label="现场终端演示">
+      <header class="workbench-heading">
+        <div><div class="eyebrow" id="terminal-kicker">LIVE SESSION</div><h1 id="terminal-title"></h1></div>
+        <div class="workbench-status">
+          <div id="monitor-controls" class="monitor-controls" hidden title="调整当前可见图表">
+            <label id="monitor-group-label">监控组 <select id="monitor-group" aria-label="监控组"></select></label>
+            <button id="pause-monitors">暂停跟随</button><button id="follow-monitors">恢复跟随</button><button id="monitor-time">时间范围</button>
+          </div>
+          <div class="session-badge"><span id="connection-dot" class="status-dot"></span><span id="session-label"></span><span id="connection-status">连接中</span></div>
+        </div>
+      </header>
+      <div id="sequence-bar" class="action-bar">
+        <button id="sequence-next" class="action-step">自由演示</button>
+        <div class="action-command"><span class="prompt">$</span><input id="command-input" spellcheck="false" autocomplete="off" aria-label="待填入的命令"><button id="fill-command" class="primary" title="填入后可以修改，按回车执行">填入终端 ↗</button></div>
+        <button id="sequence-complete" class="secondary" title="标记计划中的当前步骤完成并定位下一步，不执行命令">完成本步 →</button>
+        <details id="command-options" class="command-options">
+          <summary title="更多演示操作">更多 ⋯</summary>
+          <div class="command-menu">
+            <div id="step-label" class="action-selection">当前命令</div>
+            <button id="sequence-back" class="quiet">计划上一步</button><button id="sequence-skip" class="quiet">跳过计划本步</button>
+            <select id="workspace-layout" aria-label="分屏布局"><option value="columns">并排</option><option value="focus">主屏 + 侧屏</option><option value="rows">上下</option></select>
+            <button id="toggle-plan" class="quiet">候选详情</button>
+          </div>
+        </details>
+      </div>
+      <div class="workbench-body">
+        <div class="terminal-column">
+          <div id="terminal-viewport" class="panel-workspace"></div>
+        </div>
+        <aside class="plan-panel">
+          <div class="plan-heading"><div><span class="eyebrow">YOUR RUNBOOK</span><h2>演示计划</h2></div><span id="plan-count" class="count-badge"></span></div>
+          <input class="plan-search" id="plan-search" placeholder="搜索命令或说明…" aria-label="搜索命令">
+          <ol id="command-list" class="command-list"></ol><div id="plan-pages" class="list-pager"></div>
+          <div class="step-note" id="step-note"></div>
+          <div class="plan-controls"><button id="previous-command" class="quiet">← 上一条</button><button id="complete-command" class="secondary">标记完成，下一条 →</button></div>
+        </aside>
+      </div>
+      <section class="ai-panel" id="ai-panel">
+        <div class="ai-heading-row"><button class="ai-heading" id="toggle-ai" aria-expanded="false"><span class="ai-mark">✳</span><strong>现场 AI 助手</strong><span class="ai-model">Codex</span><span class="ai-hint">结合各面板历史，讨论下一步</span><span id="ai-chevron">＋</span></button><button id="new-ai-session" class="ai-fullscreen-button" title="清空当前面板的 AI 对话；保留终端历史和演示上下文">新对话</button><button id="fullscreen-ai" class="ai-fullscreen-button" aria-label="全屏现场 AI 助手">全屏</button></div>
+        <div class="ai-content" id="ai-content" hidden>
+          <div class="ai-context"><span>上下文：同屏终端历史 · 当前步骤 · 总演示顺序</span><button id="show-context" class="text-button">查看将发送的面板上下文</button></div>
+          <div id="ai-messages" class="ai-messages" aria-live="polite"></div>
+          <form id="ai-form" class="ai-form"><textarea id="ai-question" rows="1" placeholder="有人提出新问题？问问接下来如何验证…" aria-label="AI 问题"></textarea><button id="ask-ai" class="primary" type="submit">询问 AI ↗</button></form>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <footer id="bottom-toolbar" class="bottom-bar"><div id="slide-timeline" class="slide-timeline"></div><div class="navigation"><button id="previous-slide" aria-label="上一页">←</button><span id="slide-counter">01 / 05</span><button id="next-slide" aria-label="下一页">→</button></div></footer>
+  <button id="toggle-bottom-toolbar" class="toolbar-toggle toolbar-toggle-bottom" aria-expanded="false" aria-controls="bottom-toolbar" aria-label="展开底部翻页栏" title="展开底部翻页栏">底部翻页 ▴</button>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <dialog id="editor-dialog"><div class="dialog-heading"><div><span class="eyebrow">DECK CONFIGURATION</span><h2>编辑演示</h2></div><button id="close-editor" class="quiet">关闭 ✕</button></div><p>普通页使用 Markdown；终端页通过 terminal ID 共享会话。workspace 页可用 panels 数组分屏；sequence 关联各池命令。命令数和页数不设固定上限。</p><textarea id="deck-editor" spellcheck="false" aria-label="演示 JSON"></textarea><div id="editor-error" role="alert"></div><div class="dialog-actions"><label class="secondary file-button">导入 JSON<input id="import-deck" type="file" accept=".json,application/json" hidden></label><button id="save-deck" class="primary">保存并打开</button></div></dialog>
+  <dialog id="context-dialog"><div class="dialog-heading"><h2>当前面板上下文</h2><button id="close-context" class="quiet">关闭 ✕</button></div><pre id="context-text"></pre></dialog>
+  <dialog id="run-dialog"><div class="dialog-heading"><h2 id="run-title">运行信息</h2><button id="close-run">关闭 ✕</button></div>
+    <p>脚本报告的运行参数会自动显示在这里。临时执行普通命令时，也可以手动填写监控目标。修改信息不会执行命令。</p>
+    <label>监控开始时间（本地时间） <input id="run-start" type="datetime-local" step="1"></label>
+    <p>监控参数，例如 instance、task_id；请使用图表映射中约定的字段名。</p><textarea id="run-fields" spellcheck="false" aria-label="运行参数 JSON"></textarea>
+    <div id="run-error" role="alert"></div><div class="dialog-actions"><button id="new-run">作为新的运行</button><button id="save-run" class="primary">应用运行信息</button></div>
+  </dialog>
+  <dialog id="time-dialog"><div class="dialog-heading"><h2>查看一段时间</h2><button id="close-time">关闭 ✕</button></div>
+    <p>应用后暂停当前图表跟随。可填写 now、now-15m 或毫秒时间戳；点击“恢复跟随”回到本次运行。</p>
+    <label>从 <input id="monitor-from" value="now-15m" aria-label="图表开始时间"></label><label> 到 <input id="monitor-to" value="now" aria-label="图表结束时间"></label>
+    <div class="dialog-actions"><button id="apply-time" class="primary">应用到当前图表</button></div>
+  </dialog>
+  <script src="./vendor/reveal.js"></script>
+  <script src="./vendor/marked.js"></script>
+  <script src="./vendor/purify.js"></script>
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>

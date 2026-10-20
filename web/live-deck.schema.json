@@ -1,0 +1,614 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/KuribohG/LiveDeck/main/web/live-deck.schema.json",
+  "title": "Live Deck Format v1 with monitoring",
+  "description": "独立演示文件。未标注版本的旧文件按 v1 解释。引用有效性、ID 冲突、命令 ID 唯一性还需要运行 validate-deck.mjs。",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "slides"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "format": {
+      "const": "live-deck"
+    },
+    "version": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+    },
+    "title": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "terminals": {
+      "type": "object",
+      "propertyNames": {
+        "allOf": [
+          {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+          },
+          {
+            "not": {
+              "enum": [
+                "__proto__",
+                "constructor",
+                "prototype"
+              ]
+            }
+          }
+        ]
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "commands"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "cwd": {
+            "type": "string"
+          },
+          "commands": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "title",
+                "command"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "title": {
+                  "type": "string"
+                },
+                "command": {
+                  "type": "string"
+                },
+                "note": {
+                  "type": "string"
+                },
+                "tab": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,80}$",
+                  "description": "终端内的 tab ID；main 为兼容已有会话的默认 tab。"
+                }
+              }
+            }
+          },
+          "tabs": {
+            "type": "object",
+            "propertyNames": {
+              "allOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                },
+                {
+                  "not": {
+                    "enum": [
+                      "__proto__",
+                      "constructor",
+                      "prototype"
+                    ]
+                  }
+                }
+              ]
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "pattern": "\\S"
+                },
+                "cwd": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "dashboards": {
+      "type": "object",
+      "propertyNames": {
+        "allOf": [
+          {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+          },
+          {
+            "not": {
+              "enum": [
+                "__proto__",
+                "constructor",
+                "prototype"
+              ]
+            }
+          }
+        ]
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "commands"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https?://",
+            "description": "完整 HTTP(S) URL，不允许 URL 用户名或密码；运行时进行额外校验。"
+          },
+          "commands": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "title",
+                "command"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "title": {
+                  "type": "string"
+                },
+                "command": {
+                  "type": "string",
+                  "format": "uri",
+                  "pattern": "^https?://",
+                  "description": "完整 HTTP(S) URL，不允许 URL 用户名或密码；运行时进行额外校验。"
+                },
+                "note": {
+                  "type": "string"
+                }
+              },
+              "not": {
+                "required": [
+                  "tab"
+                ]
+              }
+            }
+          },
+          "binding": {
+            "$ref": "#/$defs/binding"
+          }
+        }
+      }
+    },
+    "slides": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "title"
+            ],
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "type": {
+                "const": "slide"
+              },
+              "markdown": {
+                "type": "string"
+              },
+              "kicker": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "title",
+              "terminal"
+            ],
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "type": {
+                "const": "terminal"
+              },
+              "terminal": {
+                "allOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                  },
+                  {
+                    "not": {
+                      "enum": [
+                        "__proto__",
+                        "constructor",
+                        "prototype"
+                      ]
+                    }
+                  }
+                ]
+              },
+              "kicker": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "title",
+              "panels"
+            ],
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "type": {
+                "const": "workspace"
+              },
+              "panels": {
+                "type": "array",
+                "minItems": 0,
+                "uniqueItems": true,
+                "items": {
+                  "allOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                    },
+                    {
+                      "not": {
+                        "enum": [
+                          "__proto__",
+                          "constructor",
+                          "prototype"
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "layout": {
+                "enum": [
+                  "columns",
+                  "rows",
+                  "focus"
+                ]
+              },
+              "kicker": {
+                "type": "string"
+              },
+              "monitorGroups": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "allOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                    },
+                    {
+                      "not": {
+                        "enum": [
+                          "__proto__",
+                          "constructor",
+                          "prototype"
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "monitorGroup": {
+                "allOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                  },
+                  {
+                    "not": {
+                      "enum": [
+                        "__proto__",
+                        "constructor",
+                        "prototype"
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            "anyOf": [
+              {
+                "properties": {
+                  "panels": {
+                    "minItems": 1
+                  }
+                }
+              },
+              {
+                "required": [
+                  "monitorGroups"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "sequence": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "panel",
+              "command"
+            ],
+            "properties": {
+              "panel": {
+                "allOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                  },
+                  {
+                    "not": {
+                      "enum": [
+                        "__proto__",
+                        "constructor",
+                        "prototype"
+                      ]
+                    }
+                  }
+                ]
+              },
+              "command": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                ]
+              },
+              "tab": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]{1,80}$",
+                "description": "终端内的 tab ID；main 为兼容已有会话的默认 tab。"
+              }
+            },
+            "not": {
+              "required": [
+                "group"
+              ]
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "group"
+            ],
+            "properties": {
+              "group": {
+                "allOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                  },
+                  {
+                    "not": {
+                      "enum": [
+                        "__proto__",
+                        "constructor",
+                        "prototype"
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "panel"
+                  ]
+                },
+                {
+                  "required": [
+                    "command"
+                  ]
+                },
+                {
+                  "required": [
+                    "tab"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "monitorGroups": {
+      "type": "object",
+      "propertyNames": {
+        "allOf": [
+          {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+          },
+          {
+            "not": {
+              "enum": [
+                "__proto__",
+                "constructor",
+                "prototype"
+              ]
+            }
+          }
+        ]
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "label",
+          "panels"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "panels": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "allOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                },
+                {
+                  "not": {
+                    "enum": [
+                      "__proto__",
+                      "constructor",
+                      "prototype"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "binding": {
+      "type": "object",
+      "required": [
+        "terminal",
+        "params"
+      ],
+      "properties": {
+        "terminal": {
+          "allOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+            },
+            {
+              "not": {
+                "enum": [
+                  "__proto__",
+                  "constructor",
+                  "prototype"
+                ]
+              }
+            }
+          ]
+        },
+        "params": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_]*$"
+          }
+        },
+        "defaults": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_]*$",
+            "not": {
+              "enum": [
+                "constructor",
+                "prototype"
+              ]
+            }
+          },
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": [
+                  "string",
+                  "number",
+                  "boolean"
+                ]
+              },
+              {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "time": {
+          "type": "boolean",
+          "default": true
+        },
+        "lookbackMs": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 30000
+        },
+        "refresh": {
+          "type": "string",
+          "pattern": "^\\d+[smhd]$",
+          "default": "5s"
+        },
+        "follow": {
+          "type": "boolean",
+          "default": true
+        },
+        "tab": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$",
+          "description": "终端内的 tab ID；main 为兼容已有会话的默认 tab。"
+        }
+      }
+    }
+  }
+}

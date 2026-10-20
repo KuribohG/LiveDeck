@@ -1,0 +1,48 @@
+{
+  "type": "object",
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "面向观众的简短证据与建议依据摘要，不是内部逐步思维。"
+    },
+    "answer": {
+      "type": "string"
+    },
+    "commands": {
+      "type": "array",
+      "description": "按实际需要提供建议操作；不固定数量，没有适合的操作时为空数组。",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "这条操作的简短中文名称。"
+          },
+          "command": {
+            "type": "string"
+          },
+          "panel": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string",
+            "description": "用中文解释用途和预期观察结果；有前置条件、执行顺序或副作用时一并说明。"
+          }
+        },
+        "required": [
+          "title",
+          "command",
+          "panel",
+          "note"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "summary",
+    "answer",
+    "commands"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,159 @@
+{
+  "format": "live-deck",
+  "version": 1,
+  "id": "live-deck-monitoring-v1",
+  "title": "运行与监控联动",
+  "terminals": {
+    "runner": {
+      "label": "运行终端",
+      "cwd": "{{LIVE_DECK_WORKSPACES}}/monitoring",
+      "commands": [
+        {
+          "id": "run",
+          "title": "启动五分钟演示进程",
+          "command": "python3 {{LIVE_DECK_ROOT}}/backend/run_context.py run -- python3 -u {{LIVE_DECK_ROOT}}/examples/monitoring.py",
+          "note": "填入后按回车。任务就绪后右侧收到主机、进程标识和开始时间；Ctrl+C 结束。重新执行会生成新的任务标识。"
+        },
+        {
+          "id": "where",
+          "title": "确认主机与目录",
+          "command": "hostname; pwd",
+          "note": "普通命令不会自动发布监控上下文。也可以用工具栏的运行信息手动设置。"
+        }
+      ]
+    }
+  },
+  "dashboards": {
+    "latency": {
+      "label": "业务图表 A · 参数预览",
+      "url": "{{LIVE_DECK_URL}}/context-preview.html?title=%E4%B8%9A%E5%8A%A1%E5%9B%BE%E8%A1%A8+A+%C2%B7+%E5%8F%82%E6%95%B0%E9%A2%84%E8%A7%88",
+      "binding": {
+        "terminal": "runner",
+        "params": {
+          "var-instance": "instance",
+          "var-task_id": "task_id"
+        },
+        "lookbackMs": 30000,
+        "refresh": "5s"
+      },
+      "commands": [
+        {
+          "id": "view",
+          "title": "查看当前运行参数",
+          "command": "{{LIVE_DECK_URL}}/context-preview.html?title=%E4%B8%9A%E5%8A%A1%E5%9B%BE%E8%A1%A8+A+%C2%B7+%E5%8F%82%E6%95%B0%E9%A2%84%E8%A7%88",
+          "note": "参数映射示例。接入真实监控时，将 url 和此处 command 替换成 Grafana 单图链接，并核对变量名。"
+        }
+      ]
+    },
+    "throughput": {
+      "label": "业务图表 B · 参数预览",
+      "url": "{{LIVE_DECK_URL}}/context-preview.html?title=%E4%B8%9A%E5%8A%A1%E5%9B%BE%E8%A1%A8+B+%C2%B7+%E5%8F%82%E6%95%B0%E9%A2%84%E8%A7%88",
+      "binding": {
+        "terminal": "runner",
+        "params": {
+          "var-instance": "instance",
+          "var-task_id": "task_id"
+        },
+        "lookbackMs": 30000,
+        "refresh": "5s"
+      },
+      "commands": [
+        {
+          "id": "view",
+          "title": "查看当前运行参数",
+          "command": "{{LIVE_DECK_URL}}/context-preview.html?title=%E4%B8%9A%E5%8A%A1%E5%9B%BE%E8%A1%A8+B+%C2%B7+%E5%8F%82%E6%95%B0%E9%A2%84%E8%A7%88",
+          "note": "参数映射示例。接入真实监控时，将 url 和此处 command 替换成 Grafana 单图链接，并核对变量名。"
+        }
+      ]
+    },
+    "network": {
+      "label": "主机图表 · 参数预览",
+      "url": "{{LIVE_DECK_URL}}/context-preview.html?title=%E4%B8%BB%E6%9C%BA%E5%9B%BE%E8%A1%A8+%C2%B7+%E5%8F%82%E6%95%B0%E9%A2%84%E8%A7%88",
+      "binding": {
+        "terminal": "runner",
+        "params": {
+          "var-host": "instance",
+          "var-task_id": "task_id"
+        },
+        "lookbackMs": 30000,
+        "refresh": "5s"
+      },
+      "commands": [
+        {
+          "id": "view",
+          "title": "查看当前运行参数",
+          "command": "{{LIVE_DECK_URL}}/context-preview.html?title=%E4%B8%BB%E6%9C%BA%E5%9B%BE%E8%A1%A8+%C2%B7+%E5%8F%82%E6%95%B0%E9%A2%84%E8%A7%88",
+          "note": "参数映射示例。接入真实监控时，将 url 和此处 command 替换成 Grafana 单图链接，并核对变量名。"
+        }
+      ]
+    }
+  },
+  "monitorGroups": {
+    "business": {
+      "label": "业务观察 · 两张图",
+      "panels": [
+        "latency",
+        "throughput"
+      ]
+    },
+    "system": {
+      "label": "主机观察 · 不同变量名",
+      "panels": [
+        "network"
+      ]
+    }
+  },
+  "slides": [
+    {
+      "type": "slide",
+      "title": "任务启动，图表跟随",
+      "markdown": "左侧运行一个真实的五分钟进程，右侧显示它传来的运行参数。\n\n- 点击下一页，再点击“填入终端”，按回车启动。\n- 切换监控组、全屏查看图表、暂停跟随、调整时间。\n- 此示例右侧为**参数预览**，不是 Grafana 数据。将图表链接与变量映射换成你的真实看板，即可用于监控。"
+    },
+    {
+      "type": "workspace",
+      "title": "边运行，边观察",
+      "panels": [
+        "runner"
+      ],
+      "monitorGroups": [
+        "business",
+        "system"
+      ],
+      "layout": "focus"
+    },
+    {
+      "type": "slide",
+      "title": "回到讲解，进程继续",
+      "markdown": "切换到讲解页，终端继续运行。\n\n下一页复用同一个终端和运行上下文。\n\n**任务运行状态、图表跟随状态和演示步骤进度分别管理。**"
+    },
+    {
+      "type": "workspace",
+      "title": "继续观察同一次运行",
+      "panels": [
+        "runner"
+      ],
+      "monitorGroups": [
+        "system",
+        "business"
+      ],
+      "monitorGroup": "system",
+      "layout": "focus"
+    }
+  ],
+  "sequence": [
+    {
+      "panel": "runner",
+      "command": "run"
+    },
+    {
+      "group": "business"
+    },
+    {
+      "group": "system"
+    },
+    {
+      "panel": "latency",
+      "command": "view"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "name": "live-deck",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "1.64.1"
+  },
+  "license": "MIT",
+  "description": "Slides, persistent terminals, monitoring panels and an optional AI advisor in Jupyter.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KuribohG/LiveDeck.git"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
