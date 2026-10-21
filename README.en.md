@@ -49,6 +49,13 @@ For an existing compatible Jupyter service, run the installer and refresh the
 page. Supply the externally visible Jupyter URL, including any path prefix,
 through `--server-url`; `--custom-dir` selects a different custom-file directory.
 
+For a development machine, add `--link` to create a single-source install whose
+player code links back to this clone. Git pulls then update the served player,
+Studio, chart renderer and docs immediately. Installed deck JSON, rendered
+examples and `deployment.json` remain local files; rerun the installer after
+changing bundled decks. `scripts/link-site.py` links additional presentations to
+the same checkout and pins their backend paths to that source tree.
+
 The installer copies static files, renders local example paths and creates demo
 workspaces under `~/.local/share/live-deck/workspaces` (`--workspace-dir` overrides
 this). Re-running updates a managed installation and refuses to replace an

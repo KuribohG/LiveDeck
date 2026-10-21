@@ -8,6 +8,11 @@ import shutil
 from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parent
+LINKED_ASSETS = (
+    'index.html', 'studio.html', 'studio.css', 'src', 'style.css', 'vendor', 'docs',
+    'live-deck.schema.json', 'context-preview.html',
+)
+RENDERED_JSON = ('deck.json', 'monitoring.json', 'multi-panel.json')
 
 
 def render(value, replacements, key=None):
@@ -23,6 +28,16 @@ def render(value, replacements, key=None):
     return value
 
 
+def replace_with_symlink(source: Path, destination: Path) -> None:
+    if destination.is_symlink() and destination.resolve() == source:
+        return
+    if destination.is_dir() and not destination.is_symlink():
+        shutil.rmtree(destination)
+    elif destination.exists() or destination.is_symlink():
+        destination.unlink()
+    destination.symlink_to(source, target_is_directory=source.is_dir())
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     config_dir = Path(os.environ.get('JUPYTER_CONFIG_DIR', Path.home() / '.jupyter'))
@@ -31,6 +46,8 @@ def main():
     parser.add_argument('--base-url', help='Override the Jupyter URL prefix, for example /user/alice/.')
     parser.add_argument('--workspace-dir', type=Path, default=Path.home() / '.local/share/live-deck/workspaces')
     parser.add_argument('--model', help='Optional Codex model override; otherwise use the Codex configuration.')
+    parser.add_argument('--link', action='store_true',
+                        help='Development install: link player code to this checkout so git pull updates Jupyter immediately.')
     args = parser.parse_args()
     server = urlsplit(args.server_url)
     if server.scheme not in ('http', 'https') or not server.netloc or server.username or server.password or server.query or server.fragment:
@@ -46,13 +63,26 @@ def main():
     workspace = args.workspace_dir.expanduser().resolve()
     for name in ('terminal-1', 'terminal-2', 'multi-run', 'multi-logs', 'monitoring'):
         (workspace / name).mkdir(parents=True, exist_ok=True)
-    shutil.copytree(ROOT / 'web', target, dirs_exist_ok=True)
+    if args.link:
+        target.mkdir(parents=True, exist_ok=True)
+        for name in LINKED_ASSETS:
+            replace_with_symlink(ROOT / 'web' / name, target / name)
+        (target / 'examples').mkdir(exist_ok=True)
+    else:
+        shutil.copytree(ROOT / 'web', target, dirs_exist_ok=True)
     deck_url = f'{server.scheme}://{server.netloc}{base_url}custom/live-deck'
     replacements = {'{{LIVE_DECK_WORKSPACES}}': str(workspace), '{{LIVE_DECK_ROOT}}': str(ROOT), '{{LIVE_DECK_URL}}': deck_url}
-    for path in [*target.glob('*.json'), *target.glob('examples/*.json')]:
-        data = render(json.loads(path.read_text()), replacements)
+    for relative in [*(Path(name) for name in RENDERED_JSON),
+                     *(Path('examples') / path.name for path in (ROOT / 'web/examples').glob('*.json'))]:
+        source = ROOT / 'web' / relative
+        path = target / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        data = render(json.loads(source.read_text()), replacements)
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n')
-    (target / 'deployment.json').write_text(json.dumps({'jupyterBaseUrl': base_url, 'advisorPath': str(ROOT / 'backend/advisor.py')}, indent=2) + '\n')
+    deployment = {'jupyterBaseUrl': base_url, 'advisorPath': str(ROOT / 'backend/advisor.py')}
+    if (ROOT / 'backend/metrics.py').is_file():
+        deployment['metricsPath'] = str(ROOT / 'backend/metrics.py')
+    (target / 'deployment.json').write_text(json.dumps(deployment, indent=2) + '\n')
     settings_path = ROOT / 'backend/local-settings.json'
     settings = json.loads(settings_path.read_text()) if settings_path.exists() else {}
     node = shutil.which('node')

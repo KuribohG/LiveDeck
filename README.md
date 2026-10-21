@@ -24,6 +24,8 @@ python -m nbclassic --no-browser --port=8888
 
 已有兼容 Jupyter 服务时，只需运行安装脚本。反向代理或 JupyterHub 用户应将 `--server-url` 设为浏览器看到的完整 Jupyter 地址（含 `/user/alice/` 等前缀）；可用 `--custom-dir` 指向服务实际使用的 custom 目录。静态文件安装无需重启服务。
 
+开发机可加 `--link` 建立单一代码来源安装：Jupyter 中的播放器入口链接回当前 Git clone，`git pull` 后前端代码、Studio、图表和文档立即更新。安装目录中的 `deck.json`、监控示例和 `deployment.json` 仍是本机生成文件，修改文稿后应重新运行安装器。其他演示入口可用 `scripts/link-site.py` 链接到同一 clone；脚本会把 `advisorPath` 和 `metricsPath` 固定到该 clone 的后端。
+
 AI 是可选功能：在 Jupyter 服务器上安装并登录 Codex CLI，确保 `codex app-server` 可用。默认使用其模型配置，或在安装时指定 `--model MODEL_ID`；`LIVE_DECK_MODEL` 环境变量优先级更高。无需在演示 JSON 或前端写入凭证。未配置 AI 时仍可使用幻灯片、终端和图表。
 
 演示命令以 Jupyter 用户身份运行；“填入终端”不发送回车。向 AI 提问会把所显示的上下文（包括近期终端输出）发送到所配置的模型服务，提问前可点击“查看将发送的面板上下文”。仅在可信的 Jupyter 会话中使用，并保留 Jupyter 登录保护。

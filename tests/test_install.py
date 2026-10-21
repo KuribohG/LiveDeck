@@ -22,6 +22,7 @@ class InstallTest(unittest.TestCase):
         shutil.copy2(ROOT / 'install_local.py', self.source)
         shutil.copytree(ROOT / 'web', self.source / 'web')
         (self.source / 'backend').mkdir()
+        shutil.copy2(ROOT / 'backend/metrics.py', self.source / 'backend/metrics.py')
         self.custom = self.base / 'config/custom'
         self.command = [sys.executable, str(self.source / 'install_local.py'),
                         '--custom-dir', str(self.custom),
@@ -61,6 +62,21 @@ class InstallTest(unittest.TestCase):
         result = self.invoke('--custom-dir', str(alternate))
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(sentinel.read_text(), 'keep')
+
+    def test_link_mode_keeps_player_code_live_from_the_checkout(self):
+        result = self.invoke('--link')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        served = self.custom / 'live-deck'
+        self.assertTrue((served / '.live-deck-install').is_file())
+        self.assertTrue((served / 'src').is_symlink())
+        self.assertEqual((served / 'src').resolve(), self.source / 'web/src')
+        self.assertTrue((served / 'studio.html').is_symlink())
+        self.assertFalse((served / 'deck.json').is_symlink())
+        self.assertNotIn('{{LIVE_DECK_', (served / 'deck.json').read_text())
+        deployment = json.loads((served / 'deployment.json').read_text())
+        self.assertEqual(deployment['advisorPath'], str(self.source / 'backend/advisor.py'))
+        self.assertEqual(deployment['metricsPath'], str(self.source / 'backend/metrics.py'))
+        self.assertEqual(self.invoke('--link').returncode, 0)
 
     def test_server_credentials_are_not_written_to_static_files(self):
         result = self.invoke('--server-url', 'https://name:example-password@example.org')

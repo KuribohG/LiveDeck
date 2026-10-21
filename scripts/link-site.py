@@ -50,6 +50,9 @@ def link_site(root: Path, site: Path, backup: Path | None = None) -> None:
         if not isinstance(custom, dict):
             raise ValueError('Presentation deployment.json must be an object')
         config.update(custom)
+    config['advisorPath'] = str(root / 'backend/advisor.py')
+    if (root / 'backend/metrics.py').is_file():
+        config['metricsPath'] = str(root / 'backend/metrics.py')
     config['storageScope'] = 'deck'
     if (site / 'presentation.css').is_file() and not config.get('stylesheets'):
         config['stylesheets'] = ['./presentation.css']
