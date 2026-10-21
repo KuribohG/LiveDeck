@@ -76,7 +76,8 @@
       "type": "slide",
       "title": "同一现场，三个视角。",
       "kicker": "LIVE DECK / MULTI-PANEL",
-      "markdown": "运行命令、观察图表、跟随日志，保持在同一个画面。\n\n每个面板有自己的候选池；**顶部总顺序**提示下一步该切到哪里。点候选只选择，填入后仍由你按回车执行。"
+      "markdown": "运行命令、观察图表、跟随日志，保持在同一个画面。\n\n每个面板有自己的候选池；**顶部总顺序**提示下一步该切到哪里。点候选只选择，填入后仍由你按回车执行。",
+      "id": "opening"
     },
     {
       "type": "workspace",
@@ -86,12 +87,14 @@
         "metrics",
         "logs"
       ],
-      "layout": "columns"
+      "layout": "columns",
+      "id": "live-metrics"
     },
     {
       "type": "slide",
       "title": "回到讲解，进程继续运行。",
-      "markdown": "翻页保留终端连接和 Shell 状态。下一页复用这三个面板。\n\n总顺序可以跳过、回退；临时操作后，点顶部 **下一步** 返回计划。"
+      "markdown": "翻页保留终端连接和 Shell 状态。下一页复用这三个面板。\n\n总顺序可以跳过、回退；临时操作后，点顶部 **下一步** 返回计划。",
+      "id": "continue-talk"
     },
     {
       "type": "workspace",
@@ -101,7 +104,8 @@
         "metrics",
         "logs"
       ],
-      "layout": "focus"
+      "layout": "focus",
+      "id": "observe-again"
     }
   ],
   "sequence": [

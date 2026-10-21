@@ -33,5 +33,20 @@
     "url": "https://cdn.jsdelivr.net/npm/reveal.js@5.2.1/dist/reveal.js",
     "sha256": "46538b52db48724192f59bf46f5e851a18e302777c46f4a34c32709d010d6a29",
     "bytes": 112163
+  },
+  "echarts.js": {
+    "url": "https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js",
+    "sha256": "bf4a223524e40b77c304bec67e1222cf551f14880cf42c69dc046558e11c07b1",
+    "bytes": 1034102
+  },
+  "echarts.LICENSE": {
+    "url": "https://cdn.jsdelivr.net/npm/echarts@5.6.0/LICENSE",
+    "sha256": "634293835b43a6dd2094fa39182a3d9a6b9ca43b7fdb9ac354e8037af2a3093a",
+    "bytes": 11990
+  },
+  "echarts.NOTICE": {
+    "url": "https://cdn.jsdelivr.net/npm/echarts@5.6.0/NOTICE",
+    "sha256": "fa99ac3af859d0e13166906dc53a73ad34a08898da7e8ae83407275496e9e30c",
+    "bytes": 168
   }
 }

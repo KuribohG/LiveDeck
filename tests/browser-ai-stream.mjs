@@ -5,7 +5,7 @@ import {chromium} from 'playwright-core';
 import {terminalName} from '../web/src/model.js';
 
 const root=path.resolve(path.dirname(new URL(import.meta.url).pathname),'..');
-const output=process.env.LIVE_DECK_TEST_ARTIFACTS || path.join(root,'artifacts');fs.mkdirSync(output,{recursive:true});
+const output=path.resolve(root,'../live-deck-ai-streaming-20261019');fs.mkdirSync(output,{recursive:true});
 const server=JSON.parse(fs.readFileSync(process.env.LIVE_DECK_SERVER_INFO));
 const base=process.env.LIVE_DECK_TEST_BASE_URL || `http://127.0.0.1:${server.port}${server.base_url}`;
 const headers=server.token ? {Authorization:`token ${server.token}`} : {};
@@ -22,7 +22,7 @@ async function viewport(selector){const box=await page.locator(selector).boundin
 try {
   await page.goto(`${base}custom/live-deck/index.html?deck=monitoring#/1`,{waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>window.liveDeck?.pool.sessions.get('runner')?.status==='ready',null,{timeout:45000});
-  await page.locator('#command-input').fill('echo STREAM_VISIBLE_7319');await page.locator('#fill-command').click();await page.waitForFunction(()=>!document.getElementById('fill-command').disabled);await page.keyboard.press('Enter');
+  await page.locator('#command-input').fill('echo STREAM_VISIBLE_7319');await page.locator('#fill-command').click();await page.keyboard.press('Enter');
   await page.waitForFunction(()=>window.liveDeck.pool.history('runner').includes('STREAM_VISIBLE_7319'));
   await page.evaluate(()=>{window.frameBefore=window.liveDeck.pool.sessions.get('runner').frame;window.shellBefore=window.liveDeck.pool.sessions.get('runner').terminal;});
   await page.locator('[data-panel-id="runner"] .panel-zoom').click();await viewport('[data-panel-id="runner"]');

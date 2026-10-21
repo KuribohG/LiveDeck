@@ -22,8 +22,15 @@ export function validateBinding(binding, terminals) {
     if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(param) || forbidden.has(param) || typeof field !== 'string' || !fieldName.test(field) || forbidden.has(field)) throw new Error('binding.params 参数映射无效');
     if (binding.time !== false && ['from', 'to', 'refresh'].includes(param)) throw new Error('自动时间开启时不能映射 from、to、refresh');
   }
+  if (binding.paramSuffixes !== undefined) {
+    if (!object(binding.paramSuffixes)) throw new Error('paramSuffixes 必须是对象');
+    for (const [param, suffixes] of Object.entries(binding.paramSuffixes)) {
+      if (!Object.hasOwn(binding.params, param) || !Array.isArray(suffixes) || !suffixes.length || suffixes.some(suffix => typeof suffix !== 'string')) throw new Error('paramSuffixes 必须为已映射的参数提供非空字符串数组');
+    }
+  }
   if (binding.defaults !== undefined) validateFields(binding.defaults);
   if (binding.follow !== undefined && typeof binding.follow !== 'boolean') throw new Error('binding.follow 必须是布尔值');
+  for (const option of ['singleInstance', 'freezeOnFinish']) if (binding[option] !== undefined && typeof binding[option] !== 'boolean') throw new Error(`binding.${option} 必须是布尔值`);
   if (binding.time !== undefined && typeof binding.time !== 'boolean') throw new Error('binding.time 必须是布尔值');
   if (binding.lookbackMs !== undefined && (!Number.isSafeInteger(binding.lookbackMs) || binding.lookbackMs < 0)) throw new Error('lookbackMs 必须是非负整数');
   if (binding.refresh !== undefined && !/^\d+[smhd]$/.test(binding.refresh)) throw new Error('refresh 需要如 5s、1m 的间隔');
@@ -102,15 +109,26 @@ export function bindUrl(base, binding, context) {
     const value = fields[field];
     if (!Object.hasOwn(fields, field) || value === '') { missing.push(field); continue; }
     url.searchParams.delete(param);
-    for (const item of Array.isArray(value) ? value : [value]) url.searchParams.append(param, String(item));
+    for (const item of Array.isArray(value) ? value : [value]) {
+      for (const suffix of binding.paramSuffixes?.[param] || ['']) url.searchParams.append(param, String(item) + suffix);
+    }
+  }
+  if (binding.singleInstance) {
+    for (const param of ['var-ClientHost', 'var-ClientPod']) {
+      const values = url.searchParams.getAll(param);
+      if (values.length !== 1 || !/^[A-Za-z0-9][A-Za-z0-9_.():-]{0,199}$/.test(values[0]) || values[0].toLowerCase() === 'all') missing.push(`单个明确的 ${binding.params[param] || param}`);
+    }
   }
   if (binding.time !== false) {
     const start = fields.monitoring_started_at_ms ?? context?.started_at_ms;
     if (!Number.isSafeInteger(start) || start < 0) missing.push('开始时间');
     else {
       url.searchParams.set('from', String(Math.max(0, start - (binding.lookbackMs ?? 30000))));
-      url.searchParams.set('to', 'now');
-      url.searchParams.set('refresh', binding.refresh || '5s');
+      if (binding.freezeOnFinish && context?.status === 'finished' && Number.isSafeInteger(context.ended_at_ms)) {
+        url.searchParams.set('to', String(context.ended_at_ms)); url.searchParams.delete('refresh');
+      } else {
+        url.searchParams.set('to', 'now'); url.searchParams.set('refresh', binding.refresh || '5s');
+      }
     }
   }
   return {url:missing.length ? null : url.href, missing:[...new Set(missing)]};

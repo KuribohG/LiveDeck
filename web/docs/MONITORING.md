@@ -37,6 +37,7 @@
 |---|---|
 | `terminal` | 必填，引用已定义的终端 ID。只跟随该终端最近一次明确报告的运行 |
 | `params` | 必填，对象，可为空。URL 参数名 → 运行字段名 |
+| `paramSuffixes` | 可选，参数名 → 非空字符串数组。每个运行字段值分别追加各后缀，生成多个 URL 参数值 |
 | `defaults` | 可选，预先确定的运行字段默认值。此次运行报告的同名字段覆盖默认值 |
 | `time` | 可选，默认 `true`，根据本次运行生成 `from`、`to=now` 和 `refresh` |
 | `lookbackMs` | 可选，默认 `30000`，时间起点前留出的毫秒数，非负整数 |
@@ -152,3 +153,24 @@ python3 /PROJECT/backend/run_context.py publish \
 - [Instruqt 多种面板](https://docs.instruqt.com/tracks/challenges/challenge-tabs)：运行环境与展示布局分离。
 
 本实现独立编写，未引入这些项目的运行时或复制其源码；不依赖 Lark Bridge。
+
+
+复用已有看板时，应按其实际变量名映射。若运行信息里的 `pod` 是会话前缀，而看板使用精确 pod 筛选，可配置 `"params":{"var-ClientPod":"pod"},"paramSuffixes":{"var-ClientPod":["-before","-after"]}`。例如 `pod="demo-1"` 会生成两个 ClientPod 值 `demo-1-before`、`demo-1-after`，不扩大为 All，也不修改原看板查询。
+
+更新已发布文稿的图表时，可同步修改顶层 `monitoringRevision`。刷新后，从服务器更新同一文稿的图表定义，以及 ID 和命令内容均未改动的候选说明。浏览器保存的文稿标题、命令内容、tab 与步骤目标保留；额外添加的图表保留。聊天和运行进度仍按原文稿 ID 恢复。无需变更 `revision` 或切换浏览器存储键；后续手动改图表会保存，直到再次更新 `monitoringRevision`。
+
+### 单实例 Grafana 面板
+
+监控使用 Grafana 原生 `d-solo` 页面；Grafana 负责查询、单位、绘图、悬浮提示和刷新，播放器只负责布局和运行参数联动。不要在播放器中维护 SVG 绘图或 Python 指标查询模块。
+
+`binding.singleInstance: true` 要求单个明确的 `var-ClientHost` 与 `var-ClientPod`；空值、All、多目标或正则均等待，不打开全集群图。`binding.freezeOnFinish: true` 在进程结束时固定时间终点。绑定到真正运行 FUSE 的 tab，从其 started/ready/finished 事件获取精确 pod；不能拼接多个版本或用 setup 会话前缀代替。
+
+选用已有看板中的原生 panel，核实实际 SQL 确实使用 host/pod 筛选，返回一条曲线。没有适用 panel 时先准备原看板的修改方案，在用户授权范围内补齐；不要新建演示专用 dashboard 或用不同范围的延迟替代。完整 FUSE read 延迟是 `fuse.op.latency / read`，Blob Client 读调用延迟是 `blob_client.overall_latency / batchRead`。
+
+Grafana 的动态 QueryVariable 在新实例尚未进入候选列表时，自动刷新可能把 URL 指定的 host/pod 改成 All；仅检查 iframe 的初始 URL 不足以保证筛选。FUSE 48/49 和 Blob Client 91/66 支持隐藏的 TextVariable `LiveClientHost` / `LiveClientPod`，绑定时同时映射 `var-LiveClientHost` 到 `host`、`var-LiveClientPod` 到 `pod`。SQL 优先精确匹配固定参数；参数为空时沿用原看板的选择器。验证须覆盖候选为空、延迟入库和多次自动刷新，检查实际 SQL 与非空数值列数量；一个 Grafana data frame 可以包含多条曲线。
+
+WB 前后对比沿用同一套参数联动：启动辅助脚本在隔离 session 的 `.live-deck-fuse-runs.json` 记录实际上报的 before/after 身份及起止时间，事件的 `comparison_runs` 是这些记录的 JSON 字符串。FUSE 48/49 的绑定把它传给固定文本变量 `LiveClientRuns`，`monitoring_started_at_ms` 取第一段起点。SQL 按每段的精确 host/pod 和独立时间窗查询，并按 `phase` 分成绿色 before / 橙色 after；不移动时间、不跨阶段求平均。新 before 清空前轮，after 只追加同会话已结束的 before；只有 after 时显示实际观测到的一段。完成后两段一起固定时间，刷新通过运行上下文恢复。默认 `comparison_runs: "[]"` 兼容旧事件，仅显示其明确报告的当前实例。USRBIO 不绑定该参数。
+
+## Live Deck 自身时序图
+
+无需 Grafana 看板的 `chart.type: "timeseries"` 扩展见 [配置与行为契约](CHARTS.md)。

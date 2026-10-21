@@ -4,7 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "test:studio": "node --test tests/studio-*.test.mjs",
+    "test:studio:browser": "node tests/browser-studio.mjs"
   },
   "devDependencies": {
     "playwright-core": "1.64.1"

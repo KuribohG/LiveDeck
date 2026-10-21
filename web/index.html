@@ -14,8 +14,11 @@
     <span class="deck-title" id="deck-title">现场演示</span>
     <nav class="top-actions">
       <a class="example-link" href="./docs/index.html" target="_blank" rel="noopener">编写规范 ↗</a>
-      <a class="example-link" href="?deck=multi-panel#/0">分屏示例 ↗</a><button id="edit-deck" class="quiet">编辑演示</button>
+      <a class="example-link" href="?deck=multi-panel#/0">分屏示例 ↗</a>
+      <a id="studio-link" class="example-link" href="./studio.html">Studio ↗</a>
+      <button id="edit-deck" class="quiet">快速编辑 JSON</button>
       <a class="example-link" href="?deck=monitoring#/0">监控联动 ↗</a>
+      <button id="copy-state" class="quiet" title="复制当前生效文稿、运行、图表和数据验证状态">复制状态</button>
       <button id="export-deck" class="quiet">导出</button>
       <button id="reset-progress" class="quiet" title="重置步骤并回到第一页；关闭全部临时 tab，重启全部固定 tab；保留文稿和 AI 对话">重置进度</button>
       <button id="fullscreen" class="quiet">全屏 ↗</button>
@@ -62,9 +65,9 @@
         </aside>
       </div>
       <section class="ai-panel" id="ai-panel">
-        <div class="ai-heading-row"><button class="ai-heading" id="toggle-ai" aria-expanded="false"><span class="ai-mark">✳</span><strong>现场 AI 助手</strong><span class="ai-model">Codex</span><span class="ai-hint">结合各面板历史，讨论下一步</span><span id="ai-chevron">＋</span></button><button id="new-ai-session" class="ai-fullscreen-button" title="清空当前面板的 AI 对话；保留终端历史和演示上下文">新对话</button><button id="fullscreen-ai" class="ai-fullscreen-button" aria-label="全屏现场 AI 助手">全屏</button></div>
+        <div class="ai-heading-row"><button class="ai-heading" id="toggle-ai" aria-expanded="false"><span class="ai-mark">✳</span><strong>现场 AI 助手</strong><span class="ai-model">Codex · DeepSeek Flash</span><span class="ai-hint">结合各面板历史，讨论下一步</span><span id="ai-chevron">＋</span></button><button id="new-ai-session" class="ai-fullscreen-button" title="清空当前 AI 对话；保留终端历史和演示上下文">新对话</button><button id="fullscreen-ai" class="ai-fullscreen-button" aria-label="全屏现场 AI 助手">全屏</button></div>
         <div class="ai-content" id="ai-content" hidden>
-          <div class="ai-context"><span>上下文：同屏终端历史 · 当前步骤 · 总演示顺序</span><button id="show-context" class="text-button">查看将发送的面板上下文</button></div>
+          <div class="ai-context"><span><span id="ai-conversation-label"></span> · 终端历史 · 图表与运行参数 · 共享 Skills</span><button id="show-context" class="text-button">查看将发送的面板上下文</button></div>
           <div id="ai-messages" class="ai-messages" aria-live="polite"></div>
           <form id="ai-form" class="ai-form"><textarea id="ai-question" rows="1" placeholder="有人提出新问题？问问接下来如何验证…" aria-label="AI 问题"></textarea><button id="ask-ai" class="primary" type="submit">询问 AI ↗</button></form>
         </div>
@@ -76,7 +79,7 @@
   <button id="toggle-bottom-toolbar" class="toolbar-toggle toolbar-toggle-bottom" aria-expanded="false" aria-controls="bottom-toolbar" aria-label="展开底部翻页栏" title="展开底部翻页栏">底部翻页 ▴</button>
   <div id="toast" class="toast" role="status" hidden></div>
   <dialog id="editor-dialog"><div class="dialog-heading"><div><span class="eyebrow">DECK CONFIGURATION</span><h2>编辑演示</h2></div><button id="close-editor" class="quiet">关闭 ✕</button></div><p>普通页使用 Markdown；终端页通过 terminal ID 共享会话。workspace 页可用 panels 数组分屏；sequence 关联各池命令。命令数和页数不设固定上限。</p><textarea id="deck-editor" spellcheck="false" aria-label="演示 JSON"></textarea><div id="editor-error" role="alert"></div><div class="dialog-actions"><label class="secondary file-button">导入 JSON<input id="import-deck" type="file" accept=".json,application/json" hidden></label><button id="save-deck" class="primary">保存并打开</button></div></dialog>
-  <dialog id="context-dialog"><div class="dialog-heading"><h2>当前面板上下文</h2><button id="close-context" class="quiet">关闭 ✕</button></div><pre id="context-text"></pre></dialog>
+  <dialog id="context-dialog"><div class="dialog-heading"><h2 id="context-title">当前面板上下文</h2><button id="close-context" class="quiet">关闭 ✕</button></div><pre id="context-text"></pre></dialog>
   <dialog id="run-dialog"><div class="dialog-heading"><h2 id="run-title">运行信息</h2><button id="close-run">关闭 ✕</button></div>
     <p>脚本报告的运行参数会自动显示在这里。临时执行普通命令时，也可以手动填写监控目标。修改信息不会执行命令。</p>
     <label>监控开始时间（本地时间） <input id="run-start" type="datetime-local" step="1"></label>
@@ -91,6 +94,6 @@
   <script src="./vendor/reveal.js"></script>
   <script src="./vendor/marked.js"></script>
   <script src="./vendor/purify.js"></script>
-  <script type="module" src="./src/app.js"></script>
+  <script type="module" src="./src/app.js?v=product-api-20261021"></script>
 </body>
 </html>

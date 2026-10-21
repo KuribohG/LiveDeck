@@ -37,6 +37,8 @@ AI 是可选功能：在 Jupyter 服务器上安装并登录 Codex CLI，确保 
 - [网页编写规范](web/docs/AUTHORING.md)
 - [给其他 AI 的生成提示词](web/docs/AI-PROMPT.md)
 - [完整字段与行为契约](web/docs/AUTHORING.md)
+- [Live Deck Studio 使用说明](web/docs/STUDIO.md)
+- [产品接口 v1：inspect / preview / apply / validate](web/docs/PRODUCT-API.md)
 - [JSON Schema](web/live-deck.schema.json)
 - [最小完整文件](web/examples/minimal.livedeck.json)与[分屏完整文件](web/examples/multi-panel.livedeck.json)
 
@@ -56,7 +58,9 @@ AI 是可选功能：在 Jupyter 服务器上安装并登录 Codex CLI，确保 
 
 点击计划中的命令后可以编辑；“填入终端”只发送文本，回车仍由演示者执行。填入不会清空已有输入；建议在空的 Shell 提示符处使用。该按钮仅支持单行命令；多行代码和交互程序可以直接在终端输入。完成状态由演示者手动标记，不代表程序已成功执行。
 
-右上角“编辑演示”修改 JSON，“导出”保存可复用文件。编辑保存的是当前浏览器中的演示副本；不会默默覆盖服务器的 `web/deck.json`。将导出文件放回 `web/deck.json` 可更换默认演示。同一个演示 ID 和终端 ID 会恢复同一个 Jupyter 终端；需要重建当前 tab 时，点击“重启”；需要为另一份演示创建独立的一组会话时，可更换演示的 `id`。
+右上角“Studio”打开结构化编辑器，可以管理页面大纲、终端/tab、命令、网页面板、运行绑定和演示计划；“快速编辑 JSON”保留整份原文编辑入口。Studio 默认只保存独立草稿，点击“应用并打开”后才写入当前浏览器播放器副本。“导出”保存可复用文件，不会默默覆盖服务器的 `web/deck.json`。将导出文件放回 `web/deck.json` 可更换默认演示。同一个演示 ID 和终端 ID 会恢复同一个 Jupyter 终端；需要重建当前 tab 时，点击“重启”；需要为另一份演示创建独立的一组会话时，可更换演示的 `id`。
+
+顶部“复制状态”会输出当前浏览器真正生效的文稿版本、页面、面板、运行、图表请求、数据证据和缺失信息。制作演示的 Agent 也可直接使用 `window.liveDeck.productApi` 的 `inspect`、`preview`、`apply`、`validate` 和 `undo`；这些接口先校验再原子修改，不会执行命令或推进真实运行。
 
 重新排练时，点击顶部“重置进度”：关闭整份文稿的全部临时 tab，重启全部固定 tab（包括其他页和刷新后尚未连接的会话），清空终端输出与运行信息；随后重置总顺序、候选选中项、完成/跳过标记、命令草稿和搜索，并回到第一页。临时 tab 的名称和计划引用保留，重新打开时创建新 Shell。重置期间禁用重复操作和终端输入；个别失败不会阻止其他 tab 处理，错误会显示并允许重试。文稿、AI 对话、图表设置保留，不自动执行演示命令或清理磁盘文件。
 
@@ -96,7 +100,7 @@ AI 是可选功能：在 Jupyter 服务器上安装并登录 Codex CLI，确保 
 
 ## AI
 
-展开下方 AI 面板即可提问。每次请求带上当前面板、选中步骤、附近命令、总演示顺序和同屏各终端的近期输出。当前终端历史在后端最多取 40,000 字符；其他同屏历史共享预算，计划优先提供当前选中位置附近的内容，支持选中第 10,000 条等较后位置。对话仍按面板独立保存。上下文有长度预算，不限制演示文件容量。“查看将发送的面板上下文”可查看浏览器提供的原始上下文（后端还会截取）。Grafana 面板提供 URL，不自动读取跨站图表中的指标值。
+展开下方 AI 面板即可提问。每次请求区分对话所属面板与当前操作面板，并提供文稿标题、当前页、整份文稿的面板目录、选中步骤和附近命令、演示顺序，以及可见面板和聊天/操作对象的运行详情。图表详情包括标签、原始与实际 URL、跟随状态、完整绑定和 Live Deck 时序图查询证据；终端详情包括各 tab 的标签、目录、输出和运行参数，多值字段保留数组类型。最近最多 16 条对话包含摘要和建议链接。终端的近期输出和历史共享有界预算，截断会明确标记。“查看将发送的面板上下文”展示后端最终接收的产品状态、运行证据和对话上下文。
 
 分析摘要和回答正文会随模型生成逐步显示，摘要可折叠。摘要是给观众阅读的简短依据说明；如果模型提供公开推理摘要，则显示为“推理摘要”，不会展示内部原始推理。连接中断时保留已收到的内容并显示错误。建议命令在回答完成后出现，“采用”只填入对应面板的编辑框，由演示者决定是否填入终端和执行。
 
@@ -104,7 +108,7 @@ AI 是可选功能：在 Jupyter 服务器上安装并登录 Codex CLI，确保 
 
 AI 面板标题栏的“新对话”会清空当前选中面板的 AI 聊天记录，并保存到当前浏览器；其他面板对话、演示进度、命令草稿和终端状态保留。下一次提问不带旧聊天记录，仍会读取当前终端历史、演示计划和同屏上下文。每次请求使用独立的临时 Codex thread，因此无需重启 Jupyter kernel。回答生成期间该按钮暂不可用，完成或报错后恢复。
 
-AI 通过现有 Jupyter API 按需创建一个专用 Python kernel，在服务器调用 `codex app-server --listen stdio://`，模型读取使用者的 Codex 配置，也可用 `LIVE_DECK_MODEL` 或安装时的 `--model` 覆盖。适配器将增量事件传回浏览器，支持模型公开摘要和结构化回答中的分析摘要。它读取用户现有 Codex 认证与模型配置；凭证不会传到前端。使用 read-only sandbox，关闭已配置的 MCP 服务、Shell 工具、历史记忆和仓库指令加载；终端历史作为数据提供给模型。AI 不直接操作终端。
+AI 通过现有 Jupyter API 按需创建一个专用 Python kernel，在服务器调用 `codex app-server --listen stdio://`，模型读取使用者的 Codex 配置，也可用 `LIVE_DECK_MODEL` 或安装时的 `--model` 覆盖。适配器将增量事件传回浏览器，支持模型公开摘要和结构化回答中的分析摘要。它读取用户现有 Codex 认证、模型配置和共享 Skills；凭证不会传到前端。每次使用 `skills/list(forceReload=true)` 重新发现 Skills，专用只读工具可按路径读取原 `SKILL.md`、引用和模板，限制目录与读取预算，不会执行脚本。若配置了 Grafana MCP，则只开放看板与数据源查询工具；其他 MCP、Shell、历史记忆、多代理和仓库指令加载关闭。终端历史作为数据提供给模型，AI 不直接执行演示命令或修改外部状态。
 
 代码不读取 Bridge 配置、不调用 Bridge API，也不依赖 Bridge 进程存活。AI kernel 的 ID 保存在当前浏览器，可在 Jupyter 的 Running 面板中管理。
 
@@ -137,9 +141,12 @@ AI 通过现有 Jupyter API 按需创建一个专用 Python kernel，在服务�
 ```text
 web/
   index.html, style.css  页面结构与样式
+  studio.html, studio.css 结构化编辑入口与样式
   deck.json             默认幻灯片和命令清单
   deployment.json       安装时生成的部署信息（不提交）
   src/model.js          配置校验、会话标识、进度状态和跨面板顺序
+  src/studio.js         结构化编辑、撤销、草稿、preflight 与显式应用
+  src/studio-model.js   新页面/面板、引用重写和安全删除
   src/workspace.js      常驻多面板、图表导航、同屏上下文
   src/runbook.js        候选池分页和搜索
   src/jupyter.js        Jupyter HTTP API
@@ -147,16 +154,19 @@ web/
   src/advisor.js        Jupyter kernel 通信
   src/conversation.js   流式对话状态、摘要与正文渲染
   src/app.js            页面与交互编排
+  src/product-api.js    产品状态快照、结构化修改、版本冲突、撤销和回放校验
+  src/metric-catalog.json 前端与后端共用的指标口径
   vendor/               固定版本依赖与许可证
 backend/
   advisor.py            标准 Codex CLI 适配器
   codex_stream.py       app-server 事件解析与公开文本流
   advisor_schema.json   AI 响应格式
+  metrics.py            服务端只读 Grafana 时序查询
 install_local.py        复制静态文件并生成本机示例配置
 tests/                  配置、隔离、浏览器与实际 AI 验证
 ```
 
-无前端构建步骤、无运行时 CDN 请求。依赖固定为 Reveal.js 5.2.1、Marked 15.0.12、DOMPurify 3.2.6，源地址和 SHA256 保存在 `web/vendor/manifest.json`。
+无前端构建步骤、无运行时 CDN 请求。依赖固定为 Reveal.js 5.2.1、Marked 15.0.12、DOMPurify 3.2.6、Apache ECharts 5.6.0，源地址和 SHA256 保存在 `web/vendor/manifest.json`。
 
 安装会复制 `web/` 到 Jupyter 配置目录下的 `custom/live-deck`，生成部署信息，并将示例中的路径占位符替换为本机路径。示例工作目录默认在 `~/.local/share/live-deck/workspaces`，可用 `--workspace-dir` 修改。再次运行会更新此前由 Live Deck 安装的静态文件；未知目录或符号链接会拒绝覆盖。源代码目录需保留，以供 AI 后端与监控示例使用。
 
@@ -171,6 +181,8 @@ tests/                  配置、隔离、浏览器与实际 AI 验证
 多面板验证：`node tests/browser-multipanel.mjs` 使用同样的浏览器环境变量，覆盖真实并发输出、日志跟随、跨页连接保留、10,000 条候选搜索、跨面板顺序、跨终端 AI 上下文与刷新恢复。`python3 -m unittest discover -s tests -p "test_*.py"` 验证 AI 上下文预算。
 
 AI 流式与全屏验证：`node tests/browser-ai-stream.mjs` 使用同样的浏览器环境变量，验证真实模型在完成前显示摘要与正文、采用命令不执行、中断保留内容，以及终端、图表和 AI 面板占满浏览器视口且保留原会话。Python 测试还覆盖 app-server 事件解析、增量 JSON 字符串、公开摘要过滤及超时清理。
+
+Studio 验证：`node tests/browser-studio.mjs` 使用临时静态服务器和 Chromium，覆盖页面创建、命令编辑、撤销/重做、preflight、草稿保存和显式应用到播放器。`npm run test:studio` 验证稳定 ID、引用重写和安全删除规则。
 
 
 ## 动态运行上下文与监控组
@@ -217,3 +229,7 @@ PPT JSON 中 `terminals.<id>.tabs` 声明的 tab 都是固定 tab，不提供关
 完整命名与引用示例见 [tabs.livedeck.json](web/examples/tabs.livedeck.json)。
 
 终端重启验证：`node tests/browser-terminal-restart.mjs` 使用同样的 Jupyter/Chromium 环境变量，并要求 `LIVE_DECK_TEST_ARTIFACTS` 指向仓库外的结果目录。可用 `LIVE_DECK_TEST_PAGE` 指定播放器入口。测试创建独立文稿和终端，检查旧 Shell 与前台进程退出、重连保留状态、重启隔离、关闭失败、并发点击和翻页/刷新恢复，结束后只删除本次测试终端。
+
+## Live Deck 时序图扩展
+
+可在 dashboard 配置中使用 `chart.type: "timeseries"`。ECharts 5.6.0 固定依赖放在共享 `vendor/` 中；后端 `metrics.py` 通过独立的 Jupyter kernel 只读查询 Grafana。AI 和指标使用不同 kernel，互不排队。无需 Grafana 插件、看板写入或重启 Jupyter。Grafana 地址和认证由 Jupyter 服务端的 `GRAFANA_URL`、`GRAFANA_TOKEN` 等环境变量或 `~/.grafana.env` 提供，绝不写入浏览器或文稿。指标定义、阶段绑定、空值与冻结规则见 [时序图配置](web/docs/CHARTS.md)。

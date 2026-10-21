@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "lastVerified": "2026-10-20",
+  "metrics": {
+    "fuse-read-rate": {
+      "label": "完整 FUSE read IOPS",
+      "description": "3FS FUSE 完整读路径的每秒读取操作数。",
+      "table": "counters",
+      "metric": "fuse.op",
+      "instance": "read",
+      "aggregate": "sum(val) / {step}",
+      "unit": "ops/s",
+      "scope": "exact-instance",
+      "comparisons": [
+        "current",
+        "before-after"
+      ],
+      "requiredRunFields": [
+        "host",
+        "pod"
+      ]
+    },
+    "fuse-read-latency": {
+      "label": "完整 FUSE read 平均延迟",
+      "description": "3FS FUSE 完整读路径的样本数加权平均延迟，不能由 Blob Client 延迟替代。",
+      "table": "distributions",
+      "metric": "fuse.op.latency",
+      "instance": "read",
+      "aggregate": "sum(mean * count) / nullIf(sum(count), 0)",
+      "unit": "ns",
+      "scope": "exact-instance",
+      "comparisons": [
+        "current",
+        "before-after"
+      ],
+      "requiredRunFields": [
+        "host",
+        "pod"
+      ]
+    },
+    "blob-read-throughput": {
+      "label": "Blob Client read 吞吐",
+      "description": "batchRead 路径每秒传输的数据载荷字节数。",
+      "table": "counters",
+      "metric": "blob_client.data_payload_bytes",
+      "instance": "batchRead",
+      "aggregate": "sum(val) / {step}",
+      "unit": "B/s",
+      "scope": "exact-instance",
+      "comparisons": [
+        "current",
+        "before-after"
+      ],
+      "requiredRunFields": [
+        "host",
+        "pod"
+      ]
+    },
+    "blob-read-latency": {
+      "label": "Blob Client read 平均延迟",
+      "description": "batchRead 路径的原图平均延迟口径，与完整 FUSE read 的加权平均口径不同。",
+      "table": "distributions",
+      "metric": "blob_client.overall_latency",
+      "instance": "batchRead",
+      "aggregate": "avg(mean)",
+      "unit": "ns",
+      "scope": "exact-instance",
+      "comparisons": [
+        "current",
+        "before-after"
+      ],
+      "requiredRunFields": [
+        "host",
+        "pod"
+      ]
+    }
+  }
+}

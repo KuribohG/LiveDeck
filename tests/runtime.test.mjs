@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {RuntimeEvents, EVENT_PREFIX, RunContexts, bindUrl} from '../web/src/runtime.js';
+import {RuntimeEvents, EVENT_PREFIX, RunContexts, bindUrl, validateBinding} from '../web/src/runtime.js';
 import {validateDeck, DeckStore, Sequence, slidePanels} from '../web/src/model.js';
 const storage = () => { const m = new Map(); return {getItem:k=>m.get(k), setItem:(k,v)=>m.set(k,v)}; };
 const event = (extra={}) => ({version:1,event:'started',event_id:'e1',run_id:'r1',started_at_ms:1000,at_ms:1000,fields:{instance:'node-a'},...extra});
@@ -66,5 +66,44 @@ test('monitor group and binding references validate; sequence can navigate a gro
   const seq=new Sequence(deck,new DeckStore(deck,storage())); assert.equal(seq.next.group,'system'); seq.advance(); assert.equal(seq.next,undefined);
   for (const mutate of [d=>d.dashboards.cpu.binding.terminal='missing',d=>d.monitorGroups.system.panels=['runner'],d=>d.sequence[0].group='missing',d=>d.sequence[0].panel='cpu',d=>d.slides[0].monitorGroup='missing',d=>d.dashboards.cpu.binding.params.from='instance',d=>d.dashboards.cpu.binding.defaults={instance:null}]) {
     const changed=structuredClone(deck);mutate(changed);assert.throws(()=>validateDeck(changed));
+  }
+});
+
+
+test('existing Grafana variables bind exact daemon names from old and new runtime contexts',()=>{
+  const binding={terminal:'runner',params:{'var-ClientHost':'host','var-ClientPod':'pod'},paramSuffixes:{'var-ClientPod':['-before','-after']}};
+  validateBinding(binding,{runner:{}});
+  const run=event({fields:{host:'node',pod:'session & 1'}});
+  const result=new URL(bindUrl('https://grafana.example/d-solo/original?var-ClientPod=old',binding,run).url);
+  assert.deepEqual(result.searchParams.getAll('var-ClientPod'),['session & 1-before','session & 1-after']);
+  assert.equal(result.searchParams.get('var-ClientHost'),'node');assert.equal(result.origin,'https://grafana.example');
+  assert.equal(run.fields.pod,'session & 1');assert.equal(bindUrl(result,binding,event()).url,null);
+  for(const paramSuffixes of [null,[],{'unmapped':['-before']},{'var-ClientPod':[]},{'var-ClientPod':[1]}]) {
+    assert.throws(()=>validateBinding({...binding,paramSuffixes},{runner:{}}));
+  }
+});
+
+test('single-instance binding waits on missing, All, multiple or pattern targets and freezes a completed run',()=>{
+  const binding={terminal:'runner',params:{'var-ClientHost':'host','var-ClientPod':'pod'},singleInstance:true,freezeOnFinish:true,lookbackMs:100};
+  const base='https://grafana.example/d/source?var-ClientPod=All';
+  for(const fields of [{},{host:'node',pod:'All'},{host:'All',pod:'run-before'},{host:'node',pod:['before','after']},{host:'node',pod:'.*'}]){
+    assert.equal(bindUrl(base,binding,event({fields})).url,null);
+  }
+  const done={...event({fields:{host:'node',pod:'run-before'}}),status:'finished',ended_at_ms:2000};
+  const url=new URL(bindUrl(base,binding,done).url);
+  assert.deepEqual(url.searchParams.getAll('var-ClientPod'),['run-before']);
+  assert.equal(url.searchParams.get('to'),'2000'); assert.equal(url.searchParams.has('refresh'),false);
+  for(const option of ['singleInstance','freezeOnFinish'])assert.throws(()=>validateBinding({...binding,[option]:'true'},{runner:{}}));
+});
+
+test('a new FUSE phase changes only its tab-bound exact pod and discards the prior time window',()=>{
+  const runs=new RunContexts(new DeckStore({id:'phase-test'},storage()));
+  const binding={terminal:'runner',tab:'fuse',params:{'var-ClientHost':'host','var-ClientPod':'pod'},singleInstance:true,lookbackMs:100};
+  runs.accept('runner',event({fields:{host:'node',pod:'prefix'}}));
+  assert.equal(bindUrl('https://grafana.example/d/source',binding,runs.get('runner:fuse')).url,null);
+  for(const [phase,stamp] of [['before',1000],['after',2000]]){
+    runs.accept('runner:fuse',event({run_id:phase,started_at_ms:stamp,at_ms:stamp,fields:{host:'node',pod:'prefix-'+phase}}));
+    const url=new URL(bindUrl('https://grafana.example/d/source',binding,runs.get('runner:fuse')).url);
+    assert.deepEqual(url.searchParams.getAll('var-ClientPod'),['prefix-'+phase]);assert.equal(url.searchParams.get('from'),String(stamp-100));
   }
 });

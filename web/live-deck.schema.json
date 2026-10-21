@@ -80,10 +80,32 @@
                 "note": {
                   "type": "string"
                 },
+                "expect": {
+                  "type": "string",
+                  "description": "演示者预期观察到的结果；不参与执行和自动断言。"
+                },
                 "tab": {
                   "type": "string",
                   "pattern": "^[a-zA-Z0-9_-]{1,80}$",
                   "description": "终端内的 tab ID；main 为兼容已有会话的默认 tab。"
+                },
+                "preview": {
+                  "type": "object",
+                  "required": [
+                    "panel",
+                    "url"
+                  ],
+                  "properties": {
+                    "panel": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string",
+                      "format": "uri",
+                      "pattern": "^https?://"
+                    }
+                  },
+                  "description": "选中命令时更新同页网页面板，不执行命令。"
                 }
               }
             }
@@ -119,6 +141,10 @@
                 }
               }
             }
+          },
+          "independentSequence": {
+            "type": "boolean",
+            "description": "为该终端单独保存步骤进度，进入包含它的页面时使用；默认为 false。"
           }
         }
       }
@@ -181,6 +207,24 @@
                 },
                 "note": {
                   "type": "string"
+                },
+                "preview": {
+                  "type": "object",
+                  "required": [
+                    "panel",
+                    "url"
+                  ],
+                  "properties": {
+                    "panel": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string",
+                      "format": "uri",
+                      "pattern": "^https?://"
+                    }
+                  },
+                  "description": "选中命令时更新同页网页面板，不执行命令。"
                 }
               },
               "not": {
@@ -192,6 +236,63 @@
           },
           "binding": {
             "$ref": "#/$defs/binding"
+          },
+          "chart": {
+            "type": "object",
+            "required": [
+              "type",
+              "metric",
+              "datasource",
+              "database"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "const": "timeseries"
+              },
+              "metric": {
+                "enum": [
+                  "fuse-read-rate",
+                  "fuse-read-latency",
+                  "blob-read-throughput",
+                  "blob-read-latency"
+                ]
+              },
+              "datasource": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{1,100}$"
+              },
+              "database": {
+                "type": "string",
+                "pattern": "^hf3fs_[A-Za-z0-9_]+$"
+              },
+              "stepSeconds": {
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 60
+              },
+              "comparisonField": {
+                "type": "string"
+              },
+              "colors": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "before": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  },
+                  "after": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  },
+                  "current": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -208,6 +309,14 @@
               "title"
             ],
             "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]{1,80}$",
+                "description": "可选稳定页面 ID；同一文稿内必须唯一。"
+              },
+              "speakerNotes": {
+                "type": "string"
+              },
               "title": {
                 "type": "string"
               },
@@ -230,6 +339,14 @@
               "terminal"
             ],
             "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]{1,80}$",
+                "description": "可选稳定页面 ID；同一文稿内必须唯一。"
+              },
+              "speakerNotes": {
+                "type": "string"
+              },
               "title": {
                 "type": "string"
               },
@@ -266,6 +383,14 @@
               "panels"
             ],
             "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]{1,80}$",
+                "description": "可选稳定页面 ID；同一文稿内必须唯一。"
+              },
+              "speakerNotes": {
+                "type": "string"
+              },
               "title": {
                 "type": "string"
               },
@@ -514,6 +639,16 @@
           }
         }
       }
+    },
+    "revision": {
+      "type": "string",
+      "pattern": "\\S",
+      "description": "使用按文稿隔离的部署时，区分浏览器编辑副本；不更换终端 ID。"
+    },
+    "monitoringRevision": {
+      "type": "string",
+      "pattern": "\\S",
+      "description": "更新服务器文稿中的图表及未修改命令的说明；保留浏览器 tab、命令内容、聊天与进度。"
     }
   },
   "$defs": {
@@ -607,6 +742,25 @@
           "type": "string",
           "pattern": "^[a-zA-Z0-9_-]{1,80}$",
           "description": "终端内的 tab ID；main 为兼容已有会话的默认 tab。"
+        },
+        "paramSuffixes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": "为已映射的 URL 参数值追加固定后缀；多个后缀生成多个参数值。"
+        },
+        "singleInstance": {
+          "type": "boolean",
+          "default": false
+        },
+        "freezeOnFinish": {
+          "type": "boolean",
+          "default": false
         }
       }
     }

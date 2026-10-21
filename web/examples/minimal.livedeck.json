@@ -36,27 +36,32 @@
     {
       "type": "slide",
       "title": "介绍",
-      "markdown": "这是一份 **Live Deck v1** 文件。"
+      "markdown": "这是一份 **Live Deck v1** 文件。",
+      "id": "intro"
     },
     {
       "type": "terminal",
       "title": "设置变量",
-      "terminal": "shell-a"
+      "terminal": "shell-a",
+      "id": "set-state"
     },
     {
       "type": "slide",
       "title": "解释状态共享",
-      "markdown": "相同终端 ID 复用 Shell；跨页保持变量、目录和进程。"
+      "markdown": "相同终端 ID 复用 Shell；跨页保持变量、目录和进程。",
+      "id": "shared-state"
     },
     {
       "type": "terminal",
       "title": "继续 Terminal A",
-      "terminal": "shell-a"
+      "terminal": "shell-a",
+      "id": "terminal-a"
     },
     {
       "type": "terminal",
       "title": "切换到 Terminal B",
-      "terminal": "shell-b"
+      "terminal": "shell-b",
+      "id": "terminal-b"
     }
   ],
   "sequence": [

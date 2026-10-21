@@ -112,3 +112,9 @@ body.bottom-toolbar-hidden{--bottom-toolbar-height:0px}
 .toolbar-toggle-top{top:var(--top-toolbar-height);border-top:0;border-radius:0 0 7px 7px}
 .toolbar-toggle-bottom{bottom:var(--bottom-toolbar-height);border-bottom:0;border-radius:7px 7px 0 0}
 .toolbar-toggle:hover,.toolbar-toggle:focus-visible{color:var(--accent);background:#23352c}
+
+
+/* Shared native time-series panel. */
+.timeseries-chart { position:absolute; inset:0 0 28px; min-width:0; min-height:0; }
+.chart-info { position:absolute; bottom:0; left:10px; right:10px; height:26px; line-height:26px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; color:#94a3b8; }
+.timeseries-chart ~ .chart-pending { pointer-events:none; }

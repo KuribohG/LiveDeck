@@ -17,12 +17,12 @@
 
 1. 顶层填写 `"format":"live-deck"`、数字 `"version":1`、`id`、`title`、非空 `slides`。可选 `terminals`、`dashboards`、`monitorGroups`、`sequence`；不需要的字段省略，不写 null。
 2. `id` 使用 1–80 位字母/数字/短横线/下划线。终端和图表 ID 在文稿内唯一，禁止 `__proto__`、`constructor`、`prototype`。同一 ID 的终端跨页共享同一个 Shell；不同 ID 是独立 Shell，但共享文件系统。
-3. 普通页格式：`{"type":"slide","title":"标题","kicker":"可选页眉","markdown":"Markdown 正文"}`。正文控制在一页可读的篇幅；代码块仅展示。
-4. 单终端页格式：`{"type":"terminal","title":"标题","terminal":"runner"}`。
-5. 分屏页格式：`{"type":"workspace","title":"标题","panels":["runner","metrics","logs"],"layout":"columns"}`。`panels` 中的 ID 不能重复，必须已定义。布局可用 `columns`（左右）、`rows`（上下）、`focus`（第一面板左侧主屏，其余右侧堆叠）。
-6. `terminals.runner` 格式：`{"label":"主任务","cwd":"真实已有绝对目录","commands":[{"id":"run","title":"启动任务","command":"python3 -u demo.py","note":"观察点与继续条件"}]}`。`cwd` 可省略；只影响首次创建，不能创建目录或重新定位已有 Shell。
+3. 普通页格式：`{"id":"opening","type":"slide","title":"标题","kicker":"可选页眉","markdown":"Markdown 正文","speakerNotes":"可选演讲者备注"}`。页面 `id` 在文稿内唯一；正文控制在一页可读的篇幅，代码块仅展示。
+4. 单终端页格式：`{"id":"runner-page","type":"terminal","title":"标题","terminal":"runner"}`。
+5. 分屏页格式：`{"id":"observe-page","type":"workspace","title":"标题","panels":["runner","metrics","logs"],"layout":"columns"}`。`panels` 中的 ID 不能重复，必须已定义。布局可用 `columns`（左右）、`rows`（上下）、`focus`（第一面板左侧主屏，其余右侧堆叠）。
+6. `terminals.runner` 格式：`{"label":"主任务","cwd":"真实已有绝对目录","commands":[{"id":"run","title":"启动任务","command":"python3 -u demo.py","note":"观察点与继续条件","expect":"预期看到的真实结果"}]}`。`cwd` 可省略；只影响首次创建，不能创建目录或重新定位已有 Shell。
 7. `dashboards.metrics` 格式：`{"label":"指标","url":"真实初始 URL","commands":[{"id":"observe","title":"观察指标","command":"真实完整 HTTP(S) URL","note":"关注哪些指标"}]}`。这里的 `command` 是 URL。优先使用真实 Grafana 单 panel 链接，保留时间范围、实例过滤和刷新参数。不要编造 dashboard UID、panel ID 或指标来源。
-8. 每个池可有任意数量候选。给候选稳定、池内唯一的 `id`；候选 `title` 和 `command` 必填，`note` 可选。命令用单行，长代码另交付脚本。不要包含真正换行、ESC、Ctrl+C 等控制字符。
+8. 每个池可有任意数量候选。给候选稳定、池内唯一的 `id`；候选 `title` 和 `command` 必填，`note`、`expect`、终端 `tab` 可选。命令用单行，长代码另交付脚本。不要包含真正换行、ESC、Ctrl+C 等控制字符。
 9. `sequence` 是总演示顺序，例如 `[{"panel":"runner","command":"prepare"},{"panel":"logs","command":"follow"},{"panel":"runner","command":"run"},{"panel":"metrics","command":"observe"}]`。其中 command 引用候选 ID，不是直接写 Shell 命令。允许重复引用，不必把所有排障候选都放进总顺序。
 10. 标记完成只推进提示，不自动执行，也不表示进程退出。长任务启动后可以转去日志/Grafana；持续观察日志用独立终端的 `tail -F`。同一个被前台程序占用的终端不能继续当空闲 Shell 使用，要说明何时等待结束或 Ctrl+C。
 11. 页序与 sequence 独立，sequence 不绑定某张页面。不要生成 `autoRun`、`dependsOn`、`waitFor`、自定义 JS、AI 模型/认证等未实现字段。AI 助手由播放器提供，文稿不需要配置它。
@@ -37,7 +37,7 @@
 - 如有文件系统访问权限，交付完整 JSON 和必要脚本；可在本机运行：
 
 ```bash
-node /path/to/LiveDeck/scripts/validate-deck.mjs /absolute/path/to/主题.livedeck.json
+node scripts/validate-deck.mjs /absolute/path/to/主题.livedeck.json
 ```
 
 校验只检查格式和引用，不执行命令。没有本机环境时不要声称已经通过校验或实机排练。

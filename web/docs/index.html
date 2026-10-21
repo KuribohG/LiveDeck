@@ -6,11 +6,11 @@
 <style>
 :root{color-scheme:dark}body{margin:0;background:#0c1018;color:#dce5f0;font:15px/1.85 system-ui,"Noto Sans CJK SC",sans-serif}nav{position:sticky;top:0;background:#111923ee;padding:14px max(24px,calc((100vw - 980px)/2));border-bottom:1px solid #283140;display:flex;gap:20px;white-space:nowrap;overflow:auto}a{color:#b7f5ca;text-underline-offset:3px}main{max-width:980px;margin:auto;padding:25px 24px 90px}h1,h2,h3{color:#edf4fb;line-height:1.4}h1{font-size:34px}h2{margin-top:42px;padding-top:10px;border-top:1px solid #283140}pre{background:#151e2b;padding:20px;overflow:auto;border:1px solid #2c3a4f;border-radius:10px;font-size:13px}code{color:#c4d8ed}table{border-collapse:collapse;display:block;overflow:auto;width:100%;font-size:14px}th,td{text-align:left;border:1px solid #2b394a;padding:9px 12px;vertical-align:top}blockquote{border-left:3px solid #6b967a;margin-left:0;padding-left:20px}li{margin:6px 0}
 </style>
-<nav><a href="../index.html">← 播放器</a><a href="?doc=authoring">编写规范</a><a href="?doc=monitoring">监控联动</a><a href="?doc=prompt">给 AI 的提示词</a><a href="../live-deck.schema.json">JSON Schema</a><a href="../examples/minimal.livedeck.json">完整示例</a><a id="raw" href="AUTHORING.md">原始 Markdown</a></nav>
+<nav><a href="../index.html">← 播放器</a><a href="?doc=authoring">编写规范</a><a href="../studio.html">Studio</a><a href="?doc=studio">Studio 文档</a><a href="?doc=monitoring">监控联动</a><a href="?doc=product-api">产品接口</a><a href="?doc=prompt">给 AI 的提示词</a><a href="../live-deck.schema.json">JSON Schema</a><a href="../examples/minimal.livedeck.json">完整示例</a><a id="raw" href="AUTHORING.md">原始 Markdown</a></nav>
 <main id="document">正在读取文档…</main>
 <script src="../vendor/marked.js"></script><script src="../vendor/purify.js"></script>
 <script>
-const file=({prompt:'AI-PROMPT.md',monitoring:'MONITORING.md'})[new URLSearchParams(location.search).get('doc')] || 'AUTHORING.md';
+const file=({studio:'STUDIO.md',prompt:'AI-PROMPT.md',monitoring:'MONITORING.md','product-api':'PRODUCT-API.md'})[new URLSearchParams(location.search).get('doc')] || 'AUTHORING.md';
 document.getElementById('raw').href=file;
 fetch(file).then(r=>{if(!r.ok)throw new Error('读取失败');return r.text()}).then(text=>document.getElementById('document').innerHTML=DOMPurify.sanitize(marked.parse(text))).catch(()=>document.getElementById('document').textContent='文档暂时无法读取，请刷新或使用原始 Markdown 链接。');
 </script>

@@ -1,17 +1,29 @@
-import {validateDeck, DeckStore, Sequence, panelConfig, slidePanels} from './model.js';
+import {validateDeck, DeckStore, Sequence, panelConfig, slidePanels, refreshSourceMonitoring} from './model.js';
 import {RunbookList} from './runbook.js';
 import {PanelWorkspace} from './workspace.js';
+import {LiveCharts} from './charts.js';
 import {JupyterClient} from './jupyter.js';
 import {TerminalPool} from './terminals.js';
 import {CodexAdvisor} from './advisor.js';
+import {advisorContext} from './advisor-context.js';
 import {ConversationView, createReply, applyAdvisorEvent} from './conversation.js';
 import {RunContexts} from './runtime.js';
 import {MAIN_TAB, terminalTabs, commandTab, restoreTabOrigins, fixedTabDefinitions} from './tabs.js';
+import {
+  PRODUCT_API_VERSION,
+  effectiveRevision,
+  inspectState,
+  prepareOperation,
+  previewOperation,
+  validateMetricCatalog,
+  validateProduct,
+} from './product-api.js';
 
 const $ = id => document.getElementById(id);
 const html = text => DOMPurify.sanitize(marked.parse(text || ''));
 let deck, store, pool, advisor, workspace, sequence, runbook, runs, conversationView, currentGroup, currentIndex, editingRun, currentTerminal = null, currentSlide = null, toastTimer;
-let saveDeckCopy, filling = false, editingTab;
+let saveDeckCopy, filling = false, editingTab, conversationPanel = null, adoptingSuggestion = false;
+let sourceDeck, metricCatalogData, productApi;
 
 function visiblePanels() { return slidePanels(currentSlide, deck, currentGroup); }
 function stepTitle(step) { return step.group ? `监控组 → ${deck.monitorGroups[step.group].label}` : `${panelConfig(deck, step.panel).label || step.panel} → ${panelConfig(deck, step.panel).commands[step.index].title}`; }
@@ -51,9 +63,149 @@ function terminalStatus(key, status, error) {
 function currentConfig() { return panelConfig(deck, currentTerminal); }
 function isDashboard(id = currentTerminal) { return Object.hasOwn(deck.dashboards || {}, id); }
 
+function productRejected(error, operation = null) {
+  return {
+    status:'rejected',
+    operationType:operation?.type || null,
+    issues:error.issues || [{code:error.code || 'OPERATION_FAILED', message:error.message, path:null}],
+  };
+}
+
+function commitProductDeck(next, affectedPanels = []) {
+  const updated = validateDeck(next), previous = deck;
+  deck = updated; store.deck = updated; workspace.deck = updated;
+  saveDeckCopy();
+  $('deck-title').textContent = deck.title;
+  document.title = `${deck.title} · Live Deck`;
+  for (const id of affectedPanels) {
+    const config = panelConfig(deck, id), state = store.terminal(id);
+    if (config?.chart) {
+      delete state.configSignature;
+      delete state.chartRequest;
+      delete state.chartSnapshot;
+      const entry = workspace.cards.get(id);
+      if (entry) {
+        entry.chartKey = null;
+        entry.chartData = null;
+        entry.chartError = null;
+        entry.chartReset = true;
+        workspace.refresh(id);
+      }
+    }
+  }
+  workspace.update();
+  renderSequence();
+  if (currentTerminal) renderPlan();
+  return previous;
+}
+
+function createProductApi() {
+  let undoRecord = null, sequenceNumber = 0;
+  const inspect = () => inspectState({
+    deck, sourceDeck, store, workspace, sequence, charts:workspace.charts, catalog:metricCatalogData,
+    currentSlideIndex:currentIndex ?? Reveal.getIndices().h, currentGroup, currentPanel:currentTerminal,
+  });
+  const api = {
+    version:PRODUCT_API_VERSION,
+    catalog:structuredClone(metricCatalogData),
+    inspect,
+    preview(operation, options = {}) {
+      return previewOperation(deck, operation, {
+        catalog:metricCatalogData,
+        expectedRevision:options.expectedRevision,
+      });
+    },
+    validate(options = {}) {
+      try {
+        const candidate = options.operation
+          ? prepareOperation(deck, options.operation, {catalog:metricCatalogData, expectedRevision:options.expectedRevision}).deck
+          : deck;
+        return validateProduct(candidate, {
+          catalog:metricCatalogData,
+          replay:options.replay !== false,
+          panel:options.panel,
+        });
+      } catch (error) {
+        return {
+          valid:false,
+          checkedAtMs:Date.now(),
+          effectiveRevision:effectiveRevision(deck),
+          levels:{static:{ok:false}, capabilities:{ok:false}, replay:{ok:null, checks:[]}},
+          issues:error.issues || [{code:error.code || 'VALIDATION_FAILED', message:error.message, path:null}],
+        };
+      }
+    },
+    apply(request = {}) {
+      const operation = request.operation || request;
+      try {
+        const prepared = prepareOperation(deck, operation, {
+          catalog:metricCatalogData,
+          expectedRevision:request.expectedRevision,
+        });
+        const validation = validateProduct(prepared.deck, {
+          catalog:metricCatalogData,
+          replay:true,
+          panel:prepared.affectedPanels.find(id => deck.dashboards?.[id]?.chart),
+        });
+        if (!validation.valid) return {status:'rejected', operationType:operation.type, issues:validation.issues};
+        const token = `undo-${Date.now()}-${++sequenceNumber}`;
+        if (prepared.runtimeOperation) {
+          const state = store.terminal(prepared.runtimeOperation.panel);
+          const previous = {panel:prepared.runtimeOperation.panel, draft:state.draft ?? null,
+            freeTab:state.freeTab ?? null, preparedTab:state.preparedTab ?? null};
+          state.draft = prepared.runtimeOperation.text;
+          state.freeTab = prepared.runtimeOperation.tab;
+          state.preparedTab = prepared.runtimeOperation.tab;
+          store.save();
+          if (currentTerminal === prepared.runtimeOperation.panel) renderPlan();
+          undoRecord = {token, previousDraft:previous, affectedPanels:prepared.affectedPanels};
+        } else {
+          const previousDeck = commitProductDeck(prepared.deck, prepared.affectedPanels);
+          undoRecord = {token, previousDeck, affectedPanels:prepared.affectedPanels};
+        }
+        return {
+          status:'applied',
+          operationType:operation.type,
+          affectedPanels:prepared.affectedPanels,
+          diff:prepared.diff,
+          beforeRevision:prepared.beforeRevision,
+          afterRevision:prepared.runtimeOperation ? prepared.beforeRevision : prepared.afterRevision,
+          runtimeOperation:prepared.runtimeOperation,
+          validation,
+          undoToken:token,
+        };
+      } catch (error) {
+        return productRejected(error, operation);
+      }
+    },
+    undo(token) {
+      if (!undoRecord || token !== undoRecord.token) return {
+        status:'rejected',
+        operationType:'undo',
+        issues:[{code:'UNDO_NOT_FOUND', message:'没有匹配的、仍可撤销的操作', path:null}],
+      };
+      const record = undoRecord;
+      if (record.previousDeck) commitProductDeck(record.previousDeck, record.affectedPanels);
+      else if (record.previousDraft) {
+        const {panel} = record.previousDraft;
+        const state = store.terminal(panel);
+        state.draft = record.previousDraft.draft;
+        state.freeTab = record.previousDraft.freeTab;
+        state.preparedTab = record.previousDraft.preparedTab;
+        store.save();
+        if (currentTerminal === panel) renderPlan();
+      }
+      undoRecord = null;
+      return {status:'undone', operationType:'undo', affectedPanels:record.affectedPanels};
+    },
+  };
+  return api;
+}
+
 function selectPanel(id, index) {
   const changed = currentTerminal !== id;
   currentTerminal = id;
+  if (!adoptingSuggestion) conversationPanel = id;
   const config = currentConfig(), state = store.terminal(id);
   if (index !== undefined) { state.selected = index; state.draft = config.commands[index]?.command || ''; store.save(); }
   if (changed) $('plan-search').value = '';
@@ -105,10 +257,15 @@ function renderPlan() {
   runbook.update(config.commands, state, sequence.next?.panel === currentTerminal ? sequence.next.index : -1, $('plan-search').value);
   workspace.update();
   const command = config.commands[state.selected];
+  const preview = command?.preview;
+  if (preview && workspace.visible.includes(preview.panel) && store.terminal(preview.panel).baseUrl !== preview.url) {
+    workspace.navigate(preview.panel, preview.url);
+  }
   const target = $('terminal-target'); target.hidden = isDashboard();
   if (!isDashboard()) {
     target.replaceChildren(...terminalTabs(config).map(tab => { const option = document.createElement('option'); option.value = tab.id; option.textContent = tab.label + (workspace.isTabClosed(currentTerminal, tab.id) ? '（已关闭）' : ''); return option; }));
-    target.value = command ? commandTab(config, state, sequence.matches(currentTerminal, state.selected) ? sequence.next : null) : state.freeTab || workspace.activeTab(currentTerminal) || MAIN_TAB;
+    const preparedTab = terminalTabs(config).some(tab => tab.id === state.preparedTab) ? state.preparedTab : null;
+    target.value = preparedTab || (command ? commandTab(config, state, sequence.matches(currentTerminal, state.selected) ? sequence.next : null) : state.freeTab || workspace.activeTab(currentTerminal) || MAIN_TAB);
     target.title = `填入目标：${target.selectedOptions[0]?.textContent || ''}；填入时自动切换 tab`;
   }
   $('step-label').textContent = command ? `${String(state.selected + 1).padStart(2, '0')} · ${command.title}` : '自由输入';
@@ -123,23 +280,27 @@ function selectCommand(delta, markDone = false) {
   const state = store.terminal(currentTerminal), config = currentConfig();
   if (markDone && sequence.matches(currentTerminal, state.selected)) { advanceSequence(); return; }
   if (markDone && !state.completed.includes(state.selected)) state.completed.push(state.selected);
+  delete state.preparedTab;
   state.selected = Math.max(0, Math.min(config.commands.length - 1, state.selected + delta));
   state.draft = config.commands[state.selected]?.command || ''; store.save(); renderPlan();
   $('command-list').querySelector('.selected')?.scrollIntoView({block:'nearest'});
 }
 
 function renderConversation() {
-  if (currentTerminal) conversationView.render(store.terminal(currentTerminal).conversation, currentTerminal);
+  if (!conversationPanel) return;
+  const label = $('ai-conversation-label');
+  if (label) label.textContent = `对话：${panelConfig(deck, conversationPanel).label || conversationPanel}`;
+  conversationView.render(store.terminal(conversationPanel).conversation, conversationPanel);
 }
 
 function newAIConversation() {
-  if (!currentTerminal || advisor.busy) return;
-  store.terminal(currentTerminal).conversation = [];
-  conversationView.clear(currentTerminal);
+  if (!conversationPanel || advisor.busy) return;
+  store.terminal(conversationPanel).conversation = [];
+  conversationView.clear(conversationPanel);
   $('ai-question').value = ''; renderConversation(); store.save();
   if ($('ai-content').hidden) $('toggle-ai').click();
   $('ai-question').focus();
-  if (!store.saveFailed) toast(`已开启新对话 · ${currentConfig().label || currentTerminal}`);
+  if (!store.saveFailed) toast(`已开启新对话 · ${panelConfig(deck, conversationPanel).label || conversationPanel}`);
 }
 
 async function resetProgress() {
@@ -174,22 +335,16 @@ function fullscreenAI(open) {
 async function askAI(event) {
   event.preventDefault();
   const question = $('ai-question').value.trim();
-  if (!question || !currentTerminal || advisor.busy) return;
-  const id = currentTerminal, config = currentConfig(), state = store.terminal(id);
-  const context = {question, slide: currentSlide.title, terminal: id, cwd: config.cwd || '', kind:isDashboard(id) ? 'dashboard' : 'terminal',
-    current_step: config.commands[state.selected] || {},
-    plan: config.commands.slice(Math.max(0, state.selected - 10), state.selected + 31),
-    plan_window: {total:config.commands.length, selected:state.selected, start:Math.max(0, state.selected - 10)},
-    panels: workspace.context(),
-    sequence: {total:sequence.steps.length, cursor:sequence.state.cursor,
-      upcoming:sequence.steps.slice(sequence.state.cursor, sequence.state.cursor + 12).map(step => step.group ? {group:step.group, title:stepTitle(step)} : ({panel:step.panel, action:panelConfig(deck, step.panel).commands[step.index]}))},
-    terminal_history: isDashboard(id) ? '' : pool.history(workspace.sessionId(id)), conversation: state.conversation.filter(m => !m.pending).slice(-12)};
+  if (!question || !conversationPanel || advisor.busy) return;
+  const id = conversationPanel, state = store.terminal(id);
+  const context = advisorContext({question, deck, store, workspace, pool, sequence, slide:currentSlide,
+    conversationPanel:id, operationPanel:currentTerminal, productState:productApi?.inspect() || null});
   const reply = createReply();
   state.conversation.push({role:'user', text:question}, reply);
   $('ai-question').value = ''; $('ask-ai').disabled = true; $('new-ai-session').disabled = true;
   $('new-ai-session').title = '请等待当前回答结束后开启新对话'; renderConversation();
   let paintTimer = null, lastSave = 0;
-  const paint = () => { paintTimer = null; if (currentTerminal === id) renderConversation(); };
+  const paint = () => { paintTimer = null; if (conversationPanel === id) renderConversation(); };
   try {
     await advisor.ask(context, event => {
       applyAdvisorEvent(reply, event);
@@ -201,14 +356,14 @@ async function askAI(event) {
     clearTimeout(paintTimer);
     reply.pending = false; store.save(); $('ask-ai').disabled = false;
     $('new-ai-session').disabled = false;
-    $('new-ai-session').title = '清空当前面板的 AI 对话；保留终端历史和演示上下文';
-    if (currentTerminal === id) renderConversation();
+    $('new-ai-session').title = '清空当前 AI 对话；保留终端历史和演示上下文';
+    if (conversationPanel === id) renderConversation();
   }
 }
 
 function showSlide(index) {
   $('command-options').open = false;
-  if ($('ai-panel').classList.contains('ai-fullscreen')) fullscreenAI(false);
+  if (!adoptingSuggestion && $('ai-panel').classList.contains('ai-fullscreen')) fullscreenAI(false);
   currentIndex = index;
   currentSlide = deck.slides[index];
   const choices = currentSlide.monitorGroups || [], savedGroup = store.data.monitorGroups?.[index];
@@ -227,6 +382,7 @@ function showSlide(index) {
   $('workbench').inert = !terminalPage;
   $('workbench').setAttribute('aria-hidden', String(!terminalPage));
   if (!terminalPage) { currentTerminal = null; return; }
+  sequence.setScope(ids.find(id => deck.terminals?.[id]?.independentSequence) || null);
   const target = ids.includes(currentTerminal) ? currentTerminal : ids.includes(sequence.next?.panel) ? sequence.next.panel : ids[0];
   $('terminal-title').textContent = currentSlide.title;
   $('terminal-title').title = currentSlide.title;
@@ -242,23 +398,38 @@ function showSlide(index) {
 }
 
 async function boot() {
-  const deployment = await (await fetch('./deployment.json')).json();
+  const [deployment, catalog] = await Promise.all([
+    (await fetch('./deployment.json')).json(),
+    (await fetch(new URL('./metric-catalog.json', import.meta.url), {cache:'no-store'})).json(),
+  ]);
+  metricCatalogData = validateMetricCatalog(catalog);
+  await Promise.all((deployment.stylesheets || []).map(href => new Promise((resolve, reject) => {
+    const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = href;
+    link.onload = resolve; link.onerror = () => reject(new Error(`无法加载演示样式：${href}`));
+    document.head.append(link);
+  })));
   const requested = new URLSearchParams(location.search).get('deck');
   const example = ['multi-panel', 'monitoring'].includes(requested) ? requested : null;
-  const storageKey = example ? `live-deck:${example}` : 'live-deck:current';
+  $('studio-link').href = `./studio.html${example ? `?deck=${encodeURIComponent(example)}` : ''}`;
+  const defaultDeck = await (await fetch(example ? `./${example}.json` : './deck.json', {cache:'no-store'})).json();
+  sourceDeck = structuredClone(defaultDeck);
+  const storageKey = deployment.storageScope === 'deck'
+    ? `live-deck:custom:${defaultDeck.id}${defaultDeck.revision ? `:${defaultDeck.revision}` : ''}`
+    : example ? `live-deck:${example}` : 'live-deck:current';
   const temporaryTabsKey = `${storageKey}:temporary-tabs`;
   let temporaryTabs = {}, fixedTabs = {};
   saveDeckCopy = () => {
     try { localStorage.setItem(storageKey, JSON.stringify(deck)); localStorage.setItem(temporaryTabsKey, JSON.stringify({version:2, temporary:temporaryTabs, fixed:fixedTabs})); }
     catch { toast('浏览器存储不可用，tab 设置暂存于本页，请导出演示保存。', true); }
   };
-  const defaultDeck = await (await fetch(example ? `./${example}.json` : './deck.json')).json();
   let saved;
   try { saved = JSON.parse(localStorage.getItem(storageKey) || 'null'); } catch {}
-  deck = validateDeck(saved || defaultDeck); store = new DeckStore(deck, localStorage, message => toast(message, true));
+  const refreshed = refreshSourceMonitoring(defaultDeck, saved);
+  deck = validateDeck(refreshed); store = new DeckStore(deck, localStorage, message => toast(message, true));
   let tabMetadata;
   try { tabMetadata = saved && JSON.parse(localStorage.getItem(temporaryTabsKey) || 'null'); } catch {}
   ({temporary:temporaryTabs, fixed:fixedTabs} = restoreTabOrigins(deck, defaultDeck, tabMetadata));
+  if (saved && refreshed !== saved) saveDeckCopy();
   for (const config of Object.values(store.data.terminals)) {
     for (const message of config.conversation || []) if (message.pending) { message.pending = false; message.error = '上次回答因页面刷新而中断，已保留收到的内容，可以重新提问。'; }
   }
@@ -310,13 +481,19 @@ async function boot() {
     $('close-terminal-tab-title').textContent = `关闭 ${terminalTabs(panelConfig(deck, id)).find(item => item.id === tab).label}？`;
     $('close-terminal-tab-error').textContent = ''; closeDialog.showModal();
   }, temporaryTabs);
+  workspace.charts = new LiveCharts(workspace, client, deployment, deck.id);
   runbook = new RunbookList($('command-list'), $('plan-pages'), index => selectPanel(currentTerminal, index));
   conversationView = new ConversationView($('ai-messages'), html, id => {
     const config = panelConfig(deck, id); return config ? config.label || id : null;
   }, (target, suggestion) => {
-    revealPanel(target); selectPanel(target);
+    // Revealing a suggestion may also change the slide or monitoring group.
+    adoptingSuggestion = true;
+    try { revealPanel(target); selectPanel(target); }
+    finally { adoptingSuggestion = false; }
     const state = store.terminal(target); state.draft = suggestion.command; store.save();
-    $('command-input').value = suggestion.command; $('command-input').focus(); toast(`已放入 ${panelConfig(deck, target).label || target} 的待执行内容`);
+    $('command-input').value = suggestion.command;
+    if (!$('ai-panel').classList.contains('ai-fullscreen')) $('command-input').focus({preventScroll:true});
+    toast(`已放入 ${panelConfig(deck, target).label || target} 的待执行内容`);
   }, () => store.save());
   $('deck-title').textContent = deck.title; document.title = `${deck.title} · Live Deck`;
   deck.slides.forEach((slide, index) => {
@@ -336,7 +513,11 @@ async function boot() {
   await Reveal.initialize({controls:false, progress:false, center:false, hash:true, transition:'fade',
     width:1200, height:690, margin:0.025, keyboardCondition: () => !workspace.zoomed && !$('ai-panel').classList.contains('ai-fullscreen') && !$('command-options').open && !document.querySelector('dialog[open]') && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)});
   showSlide(Reveal.getIndices().h);
-  window.liveDeck = {get deck(){return deck;}, store, pool, advisor, client, workspace, sequence, runs, selectPanel, setGroup, goTo: index => Reveal.slide(index)};
+  productApi = createProductApi();
+  window.liveDeck = {
+    get deck(){return deck;}, store, pool, advisor, client, workspace, sequence, runs, productApi,
+    selectPanel, setGroup, goTo:index => Reveal.slide(index),
+  };
 
   $('sequence-next').onclick = focusNext;
   $('sequence-complete').onclick = () => advanceSequence();
@@ -382,8 +563,9 @@ async function boot() {
   $('command-input').oninput = () => { store.terminal(currentTerminal).draft = $('command-input').value; store.save(); };
   target.onchange = () => {
     const config = currentConfig(), state = store.terminal(currentTerminal);
+    delete state.preparedTab;
     if (sequence.matches(currentTerminal, state.selected)) {
-      sequence.next.tab = target.value; deck.sequence[sequence.state.cursor].tab = target.value; saveDeckCopy();
+      sequence.next.tab = target.value; deck.sequence[sequence.next.sourceIndex].tab = target.value; saveDeckCopy();
     } else if (config.commands[state.selected]) { config.commands[state.selected].tab = target.value; saveDeckCopy(); }
     else { state.freeTab = target.value; store.save(); }
     renderPlan();
@@ -409,7 +591,23 @@ async function boot() {
   $('ai-form').onsubmit = askAI;
   $('new-ai-session').onclick = newAIConversation;
   $('ai-question').onkeydown = event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); $('ai-form').requestSubmit(); } };
-  $('show-context').onclick = () => { $('context-text').textContent = JSON.stringify({panels:workspace.context(), focused_history:isDashboard() ? '' : pool.history(workspace.sessionId(currentTerminal))}, null, 2); $('context-dialog').showModal(); };
+  $('show-context').onclick = () => {
+    $('context-title').textContent = '当前面板上下文';
+    $('context-text').textContent = JSON.stringify(advisorContext({question:$('ai-question').value.trim(),
+      deck, store, workspace, pool, sequence, slide:currentSlide, conversationPanel, operationPanel:currentTerminal,
+      productState:productApi?.inspect() || null}), null, 2);
+    $('context-dialog').showModal();
+  };
+  $('copy-state').onclick = async () => {
+    const text = JSON.stringify(productApi.inspect(), null, 2);
+    try { await navigator.clipboard.writeText(text); toast('当前 Live Deck 状态已复制'); }
+    catch {
+      $('context-title').textContent = '当前 Live Deck 状态';
+      $('context-text').textContent = text;
+      $('context-dialog').showModal();
+      toast('浏览器未允许自动复制，已打开可复制的状态文本', true);
+    }
+  };
   $('close-context').onclick = () => $('context-dialog').close();
   $('fullscreen').onclick = async () => { try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch (error) { toast(error.message, true); } };
   $('edit-deck').onclick = () => { $('deck-editor').value = JSON.stringify(deck, null, 2); $('editor-error').textContent = ''; $('editor-dialog').showModal(); };

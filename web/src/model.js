@@ -1,4 +1,5 @@
 import {validateBinding} from './runtime.js';
+import {validateChart} from './chart-model.js';
 import {hasTerminalTab} from './tabs.js';
 
 export function validateDeck(input) {
@@ -7,6 +8,8 @@ export function validateDeck(input) {
   if (input.version !== undefined && input.version !== 1) throw new Error('当前仅支持 Live Deck version 1');
   if (typeof input.id !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(input.id)) throw new Error('id 需要 1–80 个字母、数字、下划线或短横线');
   if (typeof input.title !== 'string' || !input.title.trim()) throw new Error('请填写 title');
+  if (input.monitoringRevision !== undefined && (typeof input.monitoringRevision !== 'string' || !input.monitoringRevision.trim())) throw new Error('monitoringRevision 必须是非空字符串');
+  if (input.revision !== undefined && (typeof input.revision !== 'string' || !input.revision.trim())) throw new Error('revision 必须是非空字符串');
   if (!Array.isArray(input.slides) || !input.slides.length) throw new Error('slides 需要包含至少一页');
   const terminals = input.terminals === undefined ? {} : input.terminals;
   if (!terminals || typeof terminals !== 'object' || Array.isArray(terminals)) throw new Error('terminals 必须是对象');
@@ -14,6 +17,7 @@ export function validateDeck(input) {
     if (!/^[a-zA-Z0-9_-]{1,80}$/.test(id) || ['__proto__', 'constructor', 'prototype'].includes(id)) throw new Error(`终端 ID 无效：${id}`);
     if (!terminal || typeof terminal !== 'object' || Array.isArray(terminal)) throw new Error(`终端 ${id} 配置无效`);
     if (terminal.cwd !== undefined && typeof terminal.cwd !== 'string') throw new Error(`终端 ${id} 的 cwd 必须是字符串`);
+    if (terminal.independentSequence !== undefined && typeof terminal.independentSequence !== 'boolean') throw new Error(`终端 ${id} 的 independentSequence 必须是布尔值`);
     if (terminal.tabs !== undefined) {
       if (!terminal.tabs || typeof terminal.tabs !== 'object' || Array.isArray(terminal.tabs)) throw new Error(`终端 ${id} 的 tabs 必须是对象`);
       for (const [tabId, tab] of Object.entries(terminal.tabs)) {
@@ -24,6 +28,7 @@ export function validateDeck(input) {
     if (!Array.isArray(terminal.commands)) throw new Error(`终端 ${id} 的 commands 需要是数组`);
     for (const command of terminal.commands) {
       if (!command || typeof command.command !== 'string' || typeof command.title !== 'string') throw new Error(`终端 ${id} 的每条命令需要 title 和 command`);
+      if (command.expect !== undefined && typeof command.expect !== 'string') throw new Error(`终端 ${id} 的命令 expect 必须是字符串`);
       if (command.tab !== undefined && !hasTerminalTab(terminal, command.tab)) throw new Error(`终端 ${id} 的命令引用了不存在的 tab`);
     }
   }
@@ -33,6 +38,7 @@ export function validateDeck(input) {
     if (!/^[a-zA-Z0-9_-]{1,80}$/.test(id) || ['__proto__', 'constructor', 'prototype'].includes(id) || Object.hasOwn(terminals, id)) throw new Error(`面板 ID 无效或重复：${id}`);
     if (!config || Array.isArray(config) || !Array.isArray(config.commands)) throw new Error(`图表 ${id} 的 commands 需要是数组`);
     if (config.url !== undefined) webUrl(config.url);
+    if (config.chart !== undefined) validateChart(config.chart, config.binding);
     if (config.binding !== undefined) validateBinding(config.binding, terminals);
     for (const command of config.commands) {
       if (typeof command?.title !== 'string' || typeof command.command !== 'string') throw new Error(`图表 ${id} 的动作需要 title 和 command（URL）`);
@@ -57,9 +63,14 @@ export function validateDeck(input) {
       ids.add(command.id);
     }
   }
-  for (const slide of input.slides) {
+  const slideIds = new Set();
+  for (const [slideIndex, slide] of input.slides.entries()) {
     if (!slide || !['slide', 'terminal', 'workspace'].includes(slide.type)) throw new Error('页面 type 只能是 slide、terminal 或 workspace');
     if (typeof slide.title !== 'string') throw new Error('每页需要 title');
+    if (slide.id !== undefined && (typeof slide.id !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(slide.id))) throw new Error(`页面 ${slideIndex} 的 id 无效`);
+    if (slide.id !== undefined && slideIds.has(slide.id)) throw new Error(`页面 id 重复：${slide.id}（页面 ${slideIndex}）`);
+    if (slide.id !== undefined) slideIds.add(slide.id);
+    if (slide.speakerNotes !== undefined && typeof slide.speakerNotes !== 'string') throw new Error(`页面 ${slideIndex} 的 speakerNotes 必须是字符串`);
     if (slide.type === 'terminal' && (typeof slide.terminal !== 'string' || !Object.hasOwn(terminals, slide.terminal))) throw new Error(`未定义终端：${slide.terminal}`);
     if (slide.type === 'slide' && slide.markdown !== undefined && typeof slide.markdown !== 'string') throw new Error('markdown 必须是字符串');
     if (slide.kicker !== undefined && typeof slide.kicker !== 'string') throw new Error('kicker 必须是字符串');
@@ -74,6 +85,16 @@ export function validateDeck(input) {
       if (slide.layout !== undefined && !['columns', 'rows', 'focus'].includes(slide.layout)) throw new Error('layout 只能是 columns、rows 或 focus');
     }
   }
+  for (const [id, config] of Object.entries(panels)) for (const command of config.commands) {
+    if (command.preview === undefined) continue;
+    const preview = command.preview;
+    if (!preview || typeof preview.panel !== 'string' || !Object.hasOwn(dashboards, preview.panel)) throw new Error(`面板 ${id} 的 preview 必须引用网页面板`);
+    webUrl(preview.url);
+    if (!input.slides.some(slide => {
+      const ids = slidePanels(slide, input);
+      return ids.includes(id) && ids.includes(preview.panel);
+    })) throw new Error(`面板 ${id} 的 preview 必须与命令出现在同一页`);
+  }
   if (input.sequence !== undefined && !Array.isArray(input.sequence)) throw new Error('sequence 必须是数组');
   for (const step of input.sequence || []) {
     if (step && Object.hasOwn(step, 'group')) {
@@ -85,6 +106,93 @@ export function validateDeck(input) {
     if (!input.slides.some(slide => slidePanels(slide, input).includes(step.panel))) throw new Error(`sequence 面板没有对应页面：${step.panel}`);
   }
   return structuredClone(input);
+}
+
+function issue(code, message, path, severity = 'error') {
+  return {code, message, path, severity};
+}
+
+/**
+ * Structured validation keeps validateDeck's throwing contract while exposing
+ * a machine-readable first error with a JSON Pointer for product clients.
+ */
+export function validateDeckReport(input) {
+  if (Array.isArray(input?.slides)) {
+    const seen = new Map();
+    for (const [index, slide] of input.slides.entries()) {
+      if (typeof slide?.id !== 'string') continue;
+      if (seen.has(slide.id)) {
+        return {valid:false, issues:[issue('DUPLICATE_SLIDE_ID', `页面 id 重复：${slide.id}`, `/slides/${index}/id`)]};
+      }
+      seen.set(slide.id, index);
+    }
+  }
+  try {
+    validateDeck(input);
+    return {valid:true, issues:[]};
+  } catch (error) {
+    if (/未定义终端/.test(error.message) && Array.isArray(input?.slides)) {
+      const index = input.slides.findIndex(slide => slide?.type === 'terminal' && !Object.hasOwn(input.terminals || {}, slide.terminal));
+      if (index >= 0) return {valid:false, issues:[issue('TERMINAL_REFERENCE_INVALID', error.message, `/slides/${index}/terminal`)]};
+    }
+    return {valid:false, issues:[issue('DECK_INVALID', error.message, null)]};
+  }
+}
+
+const allowed = {
+  deck:new Set(['$schema', 'format', 'version', 'id', 'title', 'monitoringRevision', 'revision', 'terminals', 'dashboards', 'monitorGroups', 'slides', 'sequence']),
+  slide:new Set(['id', 'type', 'title', 'markdown', 'kicker', 'terminal', 'panels', 'monitorGroups', 'monitorGroup', 'layout', 'speakerNotes']),
+  terminal:new Set(['label', 'cwd', 'commands', 'tabs', 'independentSequence']),
+  tab:new Set(['label', 'cwd']),
+  command:new Set(['id', 'title', 'command', 'note', 'tab', 'preview', 'expect']),
+  preview:new Set(['panel', 'url']),
+  dashboard:new Set(['label', 'url', 'commands', 'binding', 'chart']),
+  binding:new Set(['terminal', 'tab', 'params', 'paramSuffixes', 'defaults', 'follow', 'singleInstance', 'freezeOnFinish', 'time', 'lookbackMs', 'refresh']),
+  chart:new Set(['type', 'metric', 'datasource', 'database', 'stepSeconds', 'comparisonField', 'colors']),
+  group:new Set(['label', 'panels']),
+  step:new Set(['panel', 'group', 'command', 'tab']),
+};
+
+function unknownObjectFields(value, known, path, warnings) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+  for (const key of Object.keys(value)) if (!known.has(key)) {
+    warnings.push(issue('UNKNOWN_FIELD', `未知字段 ${key}；播放器会保留，但请确认拼写`, `${path}/${key.replaceAll('~', '~0').replaceAll('/', '~1')}`, 'warning'));
+  }
+}
+
+/** Non-blocking authoring lint. Unknown fields stay loadable for forward compatibility. */
+export function lintDeck(input) {
+  const warnings = [];
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return warnings;
+  unknownObjectFields(input, allowed.deck, '', warnings);
+  for (const [id, terminal] of Object.entries(input.terminals || {})) {
+    const base = `/terminals/${id.replaceAll('~', '~0').replaceAll('/', '~1')}`;
+    unknownObjectFields(terminal, allowed.terminal, base, warnings);
+    for (const [tabId, tab] of Object.entries(terminal?.tabs || {})) unknownObjectFields(tab, allowed.tab, `${base}/tabs/${tabId}`, warnings);
+    for (const [index, command] of (terminal?.commands || []).entries()) {
+      const commandBase = `${base}/commands/${index}`;
+      unknownObjectFields(command, allowed.command, commandBase, warnings);
+      unknownObjectFields(command?.preview, allowed.preview, `${commandBase}/preview`, warnings);
+    }
+  }
+  for (const [id, dashboard] of Object.entries(input.dashboards || {})) {
+    const base = `/dashboards/${id.replaceAll('~', '~0').replaceAll('/', '~1')}`;
+    unknownObjectFields(dashboard, allowed.dashboard, base, warnings);
+    unknownObjectFields(dashboard?.binding, allowed.binding, `${base}/binding`, warnings);
+    unknownObjectFields(dashboard?.chart, allowed.chart, `${base}/chart`, warnings);
+    for (const [index, command] of (dashboard?.commands || []).entries()) {
+      const commandBase = `${base}/commands/${index}`;
+      unknownObjectFields(command, allowed.command, commandBase, warnings);
+      unknownObjectFields(command?.preview, allowed.preview, `${commandBase}/preview`, warnings);
+    }
+  }
+  for (const [id, group] of Object.entries(input.monitorGroups || {})) unknownObjectFields(group, allowed.group, `/monitorGroups/${id}`, warnings);
+  for (const [index, slide] of (input.slides || []).entries()) {
+    unknownObjectFields(slide, allowed.slide, `/slides/${index}`, warnings);
+    if (slide?.id === undefined) warnings.push(issue('SLIDE_ID_MISSING', '页面没有稳定 id；后续按页引用时更容易受插入或排序影响', `/slides/${index}`, 'warning'));
+  }
+  for (const [index, step] of (input.sequence || []).entries()) unknownObjectFields(step, allowed.step, `/sequence/${index}`, warnings);
+  return warnings;
 }
 
 export function webUrl(text) {
@@ -111,11 +219,19 @@ export function commandIndex(config, reference) {
 
 export class Sequence {
   constructor(deck, store) {
-    this.steps = (deck.sequence || []).map(step => ({...step, index:step.group ? -1 : commandIndex(panelConfig(deck, step.panel), step.command)}));
+    this.allSteps = (deck.sequence || []).map((step, sourceIndex) => ({...step, sourceIndex, index:step.group ? -1 : commandIndex(panelConfig(deck, step.panel), step.command)}));
+    this.independent = new Set(Object.entries(deck.terminals || {}).filter(([, config]) => config.independentSequence).map(([id]) => id));
     this.store = store;
-    const signature = hash(JSON.stringify((deck.sequence || []).map(({tab, ...step}) => step)));
-    if (store.data.sequence?.signature !== signature) store.data.sequence = {signature, cursor:0, completed:[], skipped:[]};
-    this.state = store.data.sequence;
+    this.setScope(null);
+  }
+  setScope(panel) {
+    this.steps = this.allSteps.filter(step => panel ? step.panel === panel : !this.independent.has(step.panel));
+    const source = this.steps.map(({tab, sourceIndex, index, ...step}) => step);
+    const signature = hash(JSON.stringify(source));
+    const holder = panel ? (this.store.data.panelSequences ||= {}) : this.store.data;
+    const key = panel || 'sequence';
+    if (holder[key]?.signature !== signature) holder[key] = {signature, cursor:0, completed:[], skipped:[]};
+    this.state = holder[key];
   }
   get next() { return this.steps[this.state.cursor]; }
   matches(panel, index) { return this.next?.panel === panel && this.next?.index === index; }
@@ -168,6 +284,7 @@ export class DeckStore {
   resetProgress() {
     // Keep the objects referenced by Sequence and any streaming AI response.
     if (this.data.sequence) Object.assign(this.data.sequence, {cursor: 0, completed: [], skipped: []});
+    for (const state of Object.values(this.data.panelSequences || {})) Object.assign(state, {cursor:0, completed:[], skipped:[]});
     for (const state of Object.values(this.data.terminals)) {
       Object.assign(state, {selected: 0, completed: [], draft: null});
     }
@@ -180,4 +297,22 @@ export class DeckStore {
       this.saveFailed = true;
     }
   }
+}
+
+
+// Refresh published monitoring without replacing browser-owned tabs or commands.
+export function refreshSourceMonitoring(source, saved) {
+  if (!saved) return source;
+  if (saved.id !== source.id || !source.monitoringRevision || saved.monitoringRevision === source.monitoringRevision) return saved;
+  const updated = structuredClone(saved);
+  updated.monitoringRevision = source.monitoringRevision;
+  updated.dashboards = {...updated.dashboards, ...structuredClone(source.dashboards || {})};
+  for (const [id, config] of Object.entries(source.terminals || {})) {
+    const commands = new Map((config.commands || []).filter(command => command.id).map(command => [command.id, command]));
+    for (const command of updated.terminals?.[id]?.commands || []) {
+      const original = commands.get(command.id);
+      if (original && original.command === command.command) command.note = original.note;
+    }
+  }
+  return updated;
 }

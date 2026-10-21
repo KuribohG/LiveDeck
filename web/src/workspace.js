@@ -36,12 +36,12 @@ export class PanelWorkspace {
       follow.hidden = !config.binding;
       const link = document.createElement('a'); link.className = 'panel-external'; link.textContent = '打开 ↗'; link.title = '在新窗口登录或打开此图表'; link.target = '_blank'; link.rel = 'noopener noreferrer'; toolbar.append(link); entry.link = link;
       const full = document.createElement('a'); full.className = 'panel-full'; full.textContent = '看板 ↗'; full.target = '_blank'; full.rel = 'noopener noreferrer'; toolbar.append(full); entry.full = full;
-      const frame = document.createElement('iframe'); frame.className = 'dashboard-frame'; frame.title = config.label || id; frame.referrerPolicy = 'no-referrer'; viewport.append(frame); entry.frame = frame;
+      const frame = document.createElement(config.chart ? 'div' : 'iframe'); frame.className = config.chart ? 'timeseries-chart' : 'dashboard-frame'; frame.title = config.label || id; frame.referrerPolicy = 'no-referrer'; viewport.append(frame); entry.frame = frame;
       const pending = document.createElement('div'); pending.className = 'chart-pending'; viewport.append(pending); entry.pending = pending;
       const state = this.store.terminal(id);
-      const signature = JSON.stringify({url:config.url, binding:config.binding});
+      const signature = JSON.stringify({url:config.url, binding:config.binding, chart:config.chart});
       if (state.configSignature !== undefined && state.configSignature !== signature) {
-        delete state.url; delete state.baseUrl; delete state.follow;
+        delete state.url; delete state.baseUrl; delete state.follow; delete state.chartRequest; delete state.chartSnapshot;
       }
       state.configSignature = signature;
       if (state.follow === undefined) state.follow = config.binding?.follow !== false;
@@ -283,6 +283,7 @@ export class PanelWorkspace {
   navigate(id, text) {
     const entry = this.cards.get(id), url = webUrl(text);
     if (!entry?.isWeb) throw new Error('当前面板不是图表面板');
+    if (panelConfig(this.deck, id).chart) throw new Error('此面板使用 Live Deck 时序图；请在文稿 chart 配置中修改指标，或用 Explore 核对查询');
     const state = this.store.terminal(id); state.baseUrl = url;
     if (panelConfig(this.deck, id).binding) state.follow = true;
     else state.url = url;
@@ -290,6 +291,7 @@ export class PanelWorkspace {
   }
   follows(id) { return this.store.terminal(id).follow !== false; }
   setFollow(id, follow) {
+    if (!follow && panelConfig(this.deck, id).chart) this.charts.pause(id);
     this.store.terminal(id).follow = follow;
     this.refresh(id); this.store.save();
   }
@@ -301,6 +303,7 @@ export class PanelWorkspace {
     if (!entry?.isWeb) return;
     entry.follow.textContent = this.follows(id) ? '跟随中' : '已暂停';
     entry.follow.setAttribute('aria-pressed', String(this.follows(id)));
+    if (config.chart) { this.charts.refresh(id); return; }
     const run = config.binding && this.runs.get(terminalSessionId(config.binding.terminal, config.binding.tab));
     const result = config.binding && (this.follows(id) || !state.url)
       ? (state.baseUrl ? bindUrl(state.baseUrl, config.binding, run) : {missing:['图表链接']})
@@ -355,6 +358,7 @@ export class PanelWorkspace {
     if (/^\d+$/.test(from) && /^\d+$/.test(to) && Number(from) >= Number(to)) throw new Error('开始时间需要早于结束时间');
     for (const id of this.visible) {
       const entry = this.cards.get(id), state = this.store.terminal(id);
+      if (entry?.isWeb && panelConfig(this.deck, id).chart) { this.charts.timeRange(id, from, to); continue; }
       if (!entry?.isWeb || !state.url) continue;
       const url = new URL(state.url); url.searchParams.set('from', from); url.searchParams.set('to', to);
       if (to !== 'now') url.searchParams.delete('refresh');
@@ -373,16 +377,21 @@ export class PanelWorkspace {
     }
     requestAnimationFrame(() => this.pool.resize());
   }
-  context() {
-    return this.visible.map(id => {
-      const config = panelConfig(this.deck, id), isWeb = this.cards.get(id)?.isWeb;
+  context(ids = this.visible) {
+    return ids.map(id => {
+      const config = panelConfig(this.deck, id), isWeb = Object.hasOwn(this.deck.dashboards || {}, id);
       const panel = {id, kind:isWeb ? 'dashboard' : 'terminal', label:config.label || id};
-      if (isWeb) return {...panel, url:this.store.terminal(id).url, following:this.follows(id), binding:config.binding,
-        run:config.binding && this.runs.get(terminalSessionId(config.binding.terminal, config.binding.tab)), note:'只提供链接和运行参数，未读取图表数据'};
+      if (isWeb && config.chart) return {...panel, chart:config.chart, binding:config.binding, following:this.follows(id),
+        run:this.runs.get(terminalSessionId(config.binding.terminal, config.binding.tab)),
+        metrics:this.charts.context(id), note:'Live Deck 原生时序图；metrics 含真实查询结果及截断标记'};
+      if (isWeb) return {...panel, url:this.store.terminal(id).url || config.url,
+        base_url:this.store.terminal(id).baseUrl || config.url, following:this.follows(id), binding:config.binding,
+        run:config.binding && this.runs.get(terminalSessionId(config.binding.terminal, config.binding.tab)),
+        note:'只提供 Grafana 链接和运行参数，未读取图表数据'};
       const definitions = terminalTabs(config), budget = Math.max(200, Math.floor(12000 / definitions.length));
-      const tabs = definitions.map(tab => ({id:tab.id, label:tab.label,
+      const tabs = definitions.map(tab => ({id:tab.id, label:tab.label, cwd:tab.cwd || config.cwd,
         history:this.pool.history(this.sessionId(id, tab.id)).slice(-budget), run:this.runs.get(this.sessionId(id, tab.id))}));
-      return {...panel, active_tab:this.activeTab(id), run:this.runs.get(this.sessionId(id)), tabs,
+      return {...panel, cwd:config.cwd, active_tab:this.activeTab(id), run:this.runs.get(this.sessionId(id)), tabs,
         history:tabs.map(tab => `[${tab.label}]\n${tab.history}`).join('\n')};
     });
   }

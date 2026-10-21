@@ -5,7 +5,7 @@ import {chromium} from 'playwright-core';
 import {terminalName} from '../web/src/model.js';
 
 const root=path.resolve(path.dirname(new URL(import.meta.url).pathname),'..');
-const results=process.env.LIVE_DECK_TEST_ARTIFACTS || path.join(root,'artifacts');
+const results=process.env.LIVE_DECK_TEST_ARTIFACTS || path.resolve(root,'../live-deck-monitoring-tests-20261019');
 fs.mkdirSync(results,{recursive:true});
 const server=JSON.parse(fs.readFileSync(process.env.LIVE_DECK_SERVER_INFO));
 const base=process.env.LIVE_DECK_TEST_BASE_URL || `http://127.0.0.1:${server.port}${server.base_url}`;
@@ -21,7 +21,7 @@ let loads=0;
 await context.route('https://monitor-test.invalid/**',route=>{loads++;return route.fulfill({contentType:'text/html',body:'<!doctype html><meta charset="utf-8"><style>body{background:#17212e;color:#b7f5ca;font:12px monospace;padding:12px;word-break:break-all}</style><h2>URL 参数测试接收端</h2><p>此页面验证联动，不代表真实 Grafana 数据。</p><pre></pre><script>document.querySelector("pre").textContent=JSON.stringify(Object.fromEntries(new URL(location.href).searchParams),null,2)</script>'});});
 const shell=text=>"'"+text.replaceAll("'","'\\''")+"'";
 const helper=path.join(root,'backend/run_context.py');
-async function type(id,text){await page.evaluate(id=>window.liveDeck.selectPanel(id),id);await page.locator('#command-input').fill(text);await page.locator('#fill-command').click();await page.waitForFunction(()=>!document.getElementById('fill-command').disabled);await page.keyboard.press('Enter');}
+async function type(id,text){await page.evaluate(id=>window.liveDeck.selectPanel(id),id);await page.locator('#command-input').fill(text);await page.locator('#fill-command').click();await page.keyboard.press('Enter');}
 async function stop(id){await page.evaluate(id=>window.liveDeck.pool.sessions.get(id).terminal.socket.send(JSON.stringify(['stdin','\x03'])),id);}
 // The composer accepts single-line Shell commands; pass Python code via an escaped string.
 async function launch(id,instance,task){

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Live Deck Studio</title>
+  <link rel="stylesheet" href="./studio.css">
+</head>
+<body>
+  <header class="studio-header">
+    <a class="studio-brand" href="./index.html" aria-label="返回 Live Deck">
+      <span class="brand-icon">▰</span>
+      <span>LIVE DECK</span>
+      <strong>STUDIO</strong>
+    </a>
+    <div class="header-document">
+      <span id="document-title">加载中…</span>
+      <small id="document-revision"></small>
+    </div>
+    <div class="header-actions">
+      <button id="undo" class="quiet" title="撤销">撤销</button>
+      <button id="redo" class="quiet" title="重做">重做</button>
+      <label class="quiet file-button">导入
+        <input id="import-deck" type="file" accept=".json,.livedeck.json,application/json" hidden>
+      </label>
+      <button id="reload-source" class="quiet">重载发布稿</button>
+      <button id="export-deck" class="quiet">导出</button>
+      <button id="save-draft" class="secondary">保存草稿</button>
+      <button id="apply-deck" class="primary">应用并打开 ↗</button>
+    </div>
+  </header>
+
+  <main class="studio-shell">
+    <aside class="page-rail" aria-label="页面大纲">
+      <div class="rail-heading">
+        <div>
+          <span class="eyebrow">STORY</span>
+          <h1>页面</h1>
+        </div>
+        <span id="page-count" class="count-badge">0</span>
+      </div>
+      <ol id="page-list" class="page-list"></ol>
+      <div class="add-page">
+        <select id="new-page-type" aria-label="新页面类型">
+          <option value="slide">讲解页</option>
+          <option value="terminal">终端页</option>
+          <option value="workspace">分屏页</option>
+        </select>
+        <button id="add-page" class="secondary">＋ 新建</button>
+      </div>
+      <dl class="document-stats">
+        <div><dt>面板</dt><dd id="panel-count">0</dd></div>
+        <div><dt>步骤</dt><dd id="step-count">0</dd></div>
+        <div><dt>问题</dt><dd id="issue-count">0</dd></div>
+      </dl>
+    </aside>
+
+    <section class="preview-column" aria-label="页面预览">
+      <div class="preview-heading">
+        <div>
+          <span class="eyebrow">CANVAS</span>
+          <h2 id="preview-title">页面预览</h2>
+        </div>
+        <div id="health-summary" class="health-summary">正在检查</div>
+      </div>
+      <article id="page-preview" class="page-preview" aria-live="polite"></article>
+      <div class="preview-footnote">
+        这里是静态结构预览。真实终端、图表和运行事件会在播放器中按需连接。
+      </div>
+    </section>
+
+    <aside class="inspector" aria-label="属性检查器">
+      <nav class="inspector-tabs" aria-label="编辑范围">
+        <button data-inspector="page" class="active">页面</button>
+        <button data-inspector="panels">面板</button>
+        <button data-inspector="sequence">计划</button>
+        <button data-inspector="json">JSON</button>
+        <button data-inspector="checks">检查</button>
+      </nav>
+      <div id="inspector-body" class="inspector-body"></div>
+    </aside>
+  </main>
+
+  <footer class="studio-footer">
+    <span id="save-status">尚未修改</span>
+    <span id="storage-scope"></span>
+    <a id="raw-player-link" href="./index.html" target="_blank" rel="noopener">打开当前播放器 ↗</a>
+  </footer>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+  <script src="./vendor/marked.js"></script>
+  <script src="./vendor/purify.js"></script>
+  <script type="module" src="./src/studio.js"></script>
+</body>
+</html>

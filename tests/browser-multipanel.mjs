@@ -6,8 +6,6 @@ import {terminalName} from '../web/src/model.js';
 const require=createRequire(import.meta.url);
 const {chromium}=require(process.env.LIVE_DECK_PLAYWRIGHT_PATH || 'playwright-core');
 const root=path.resolve(path.dirname(new URL(import.meta.url).pathname),'..');
-const output=process.env.LIVE_DECK_TEST_ARTIFACTS || path.join(root,'artifacts');
-fs.mkdirSync(output,{recursive:true});
 const server=JSON.parse(fs.readFileSync(process.env.LIVE_DECK_SERVER_INFO));
 const base=process.env.LIVE_DECK_TEST_BASE_URL || `http://127.0.0.1:${server.port}${server.base_url}`;
 const browser=await chromium.launch({headless:true,executablePath:process.env.LIVE_DECK_BROWSER_EXECUTABLE,args:['--no-sandbox','--disable-dev-shm-usage']});
@@ -19,7 +17,7 @@ await context.route('**/*', route => {
 const page=await context.newPage();
 const testDeck=JSON.parse(fs.readFileSync(path.join(root,'web/multi-panel.json')));
 testDeck.id+='-browser-test';
-const fixture=path.join(output,'multi-fixture'); fs.mkdirSync(fixture,{recursive:true});
+const fixture=path.join(root,'artifacts/multi-fixture'); fs.mkdirSync(fixture,{recursive:true});
 const log=path.join(fixture,'live-demo.log');
 for(const config of Object.values(testDeck.terminals)) {config.cwd=fixture; for(const action of config.commands) action.command=action.command.replaceAll(path.join(root,'workspaces/multi-run/live-demo.log'),log);}
 const original=testDeck.terminals.runner.commands;
@@ -30,7 +28,7 @@ const errors=[],checks={};let kernelId;
 page.on('pageerror',e=>{errors.push(e.message);console.log('PAGE_ERROR',e.message);});
 const history=id=>page.evaluate(id=>window.liveDeck.pool.history(id),id);
 async function select(id,index) {await page.evaluate(({id,index})=>window.liveDeck.selectPanel(id,index),{id,index});}
-async function command(id,text) {await select(id); await page.locator('#command-input').fill(text); await page.locator('#fill-command').click();await page.waitForFunction(()=>!document.getElementById('fill-command').disabled); await page.keyboard.press('Enter');}
+async function command(id,text) {await select(id); await page.locator('#command-input').fill(text); await page.locator('#fill-command').click(); await page.keyboard.press('Enter');}
 try {
   await page.goto(`${base}custom/live-deck/index.html?deck=multi-panel#/1`,{waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>window.liveDeck?.pool.sessions.get('runner')?.status==='ready' && window.liveDeck?.pool.sessions.get('logs')?.status==='ready',null,{timeout:40000});
@@ -43,10 +41,10 @@ try {
   assert.notEqual((await history('runner')).match(/RUNNER_PID=(\d+)/)[1],(await history('logs')).match(/LOGS_PID=(\d+)/)[1]);
   checks.independentShells=true;
   await page.locator('#sequence-next').click();
-  await page.locator('#fill-command').click();await page.waitForFunction(()=>!document.getElementById('fill-command').disabled); await page.keyboard.press('Enter');
+  await page.locator('#fill-command').click(); await page.keyboard.press('Enter');
   await page.locator('#sequence-complete').click();
   assert.match(await page.locator('#session-label').textContent(),/实时日志/);
-  await page.locator('#fill-command').click();await page.waitForFunction(()=>!document.getElementById('fill-command').disabled); await page.keyboard.press('Enter');
+  await page.locator('#fill-command').click(); await page.keyboard.press('Enter');
   await page.locator('#sequence-complete').click();
   await command('runner',"for i in $(seq 1 25); do echo LIVE_TICK_$i | tee -a live-demo.log; sleep 1; done");
   await page.waitForFunction(()=>window.liveDeck.pool.history('logs').includes('LIVE_TICK_2'),null,{timeout:10000});
@@ -54,7 +52,7 @@ try {
   assert.match(await page.locator('#fill-command').textContent(),/打开图表/);
   checks.crossPanelSequence=true;checks.concurrentOutput=true;
   const urlBefore=await page.locator('.dashboard-frame').getAttribute('src');
-  await page.locator('#fill-command').click();await page.waitForFunction(()=>!document.getElementById('fill-command').disabled);
+  await page.locator('#fill-command').click();
   assert.equal(await page.locator('.dashboard-frame').getAttribute('src'),urlBefore);
   await page.evaluate(()=>{window.originalRunner=window.liveDeck.pool.sessions.get('runner').terminal;window.originalChart=document.querySelector('.dashboard-frame');window.liveDeck.goTo(2);});
   assert.equal(await page.locator('[data-panel-id="runner"]').evaluate(e=>getComputedStyle(e).visibility),'hidden');
@@ -97,15 +95,15 @@ try {
   const visibleRow=await selectedRow.evaluate(e=>{const a=e.getBoundingClientRect(),b=e.parentElement.getBoundingClientRect();return a.top>=b.top-1&&a.top<b.bottom;});
   assert.ok(visibleRow); checks.lateSelectionVisible=true;
   kernelId=await page.evaluate(()=>localStorage.getItem(window.liveDeck.advisor.key));
-  await page.screenshot({path:path.join(output,'multipanel-1440.png')});
+  await page.screenshot({path:path.join(root,'artifacts/multipanel-1440.png')});
   await page.setViewportSize({width:1280,height:800});
-  await page.screenshot({path:path.join(output,'multipanel-1280-ai.png')});
+  await page.screenshot({path:path.join(root,'artifacts/multipanel-1280-ai.png')});
   const geometry=await page.locator('.panel-viewport').evaluateAll(items=>items.map(e=>({width:e.clientWidth,height:e.clientHeight})));
   assert.ok(geometry.every(g=>g.width>200 && g.height>100),JSON.stringify(geometry));
   await page.locator('#toggle-ai').click();
   await page.locator('#command-options > summary').click();
   await page.locator('#workspace-layout').selectOption('focus');
-  await page.screenshot({path:path.join(output,'multipanel-focus.png')});
+  await page.screenshot({path:path.join(root,'artifacts/multipanel-focus.png')});
   checks.layout=true;
   const grafanaFrames=page.frames().filter(frame=>frame.url().includes('grafana.example.com'));
   checks.grafanaIframeLoaded=grafanaFrames.length>0;
@@ -119,11 +117,11 @@ try {
   checks.reloadKeepsShellAndSequence=true;
   assert.equal(errors.length,0);
   console.log('MULTIPANEL_CHECKS',JSON.stringify(checks));
-  fs.writeFileSync(path.join(output,'multipanel-result.json'),JSON.stringify({passed:true,checks,errors},null,2));
+  fs.writeFileSync(path.join(root,'artifacts/multipanel-result.json'),JSON.stringify({passed:true,checks,errors},null,2));
 } catch(e) {
   console.log('FAILED',e.stack);console.log('SESSION_ERRORS',await page.evaluate(()=>window.liveDeck && [...window.liveDeck.pool.sessions].map(([id,s])=>({id,status:s.status,error:s.error?.message,src:s.frame.src}))));process.exitCode=1;
-  await page.screenshot({path:path.join(output,'multipanel-failure.png')});
-  fs.writeFileSync(path.join(output,'multipanel-result.json'),JSON.stringify({passed:false,checks,errors,error:String(e)},null,2));
+  await page.screenshot({path:path.join(root,'artifacts/multipanel-failure.png')});
+  fs.writeFileSync(path.join(root,'artifacts/multipanel-result.json'),JSON.stringify({passed:false,checks,errors,error:String(e)},null,2));
 } finally {
   kernelId ||= await page.evaluate(()=>window.liveDeck && localStorage.getItem(window.liveDeck.advisor.key)).catch(()=>null);
   await browser.close();

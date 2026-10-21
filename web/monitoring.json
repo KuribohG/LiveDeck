@@ -107,7 +107,8 @@
     {
       "type": "slide",
       "title": "任务启动，图表跟随",
-      "markdown": "左侧运行一个真实的五分钟进程，右侧显示它传来的运行参数。\n\n- 点击下一页，再点击“填入终端”，按回车启动。\n- 切换监控组、全屏查看图表、暂停跟随、调整时间。\n- 此示例右侧为**参数预览**，不是 Grafana 数据。将图表链接与变量映射换成你的真实看板，即可用于监控。"
+      "markdown": "左侧运行一个真实的五分钟进程，右侧显示它传来的运行参数。\n\n- 点击下一页，再点击“填入终端”，按回车启动。\n- 切换监控组、全屏查看图表、暂停跟随、调整时间。\n- 此示例右侧为**参数预览**，不是 Grafana 数据。将图表链接与变量映射换成你的真实看板，即可用于监控。",
+      "id": "task-start"
     },
     {
       "type": "workspace",
@@ -119,12 +120,14 @@
         "business",
         "system"
       ],
-      "layout": "focus"
+      "layout": "focus",
+      "id": "observe-run"
     },
     {
       "type": "slide",
       "title": "回到讲解，进程继续",
-      "markdown": "切换到讲解页，终端继续运行。\n\n下一页复用同一个终端和运行上下文。\n\n**任务运行状态、图表跟随状态和演示步骤进度分别管理。**"
+      "markdown": "切换到讲解页，终端继续运行。\n\n下一页复用同一个终端和运行上下文。\n\n**任务运行状态、图表跟随状态和演示步骤进度分别管理。**",
+      "id": "continue-talk"
     },
     {
       "type": "workspace",
@@ -137,7 +140,8 @@
         "business"
       ],
       "monitorGroup": "system",
-      "layout": "focus"
+      "layout": "focus",
+      "id": "observe-again"
     }
   ],
   "sequence": [

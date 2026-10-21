@@ -5,7 +5,7 @@ import {chromium} from 'playwright-core';
 import {terminalName} from '../web/src/model.js';
 
 const root=path.resolve(path.dirname(new URL(import.meta.url).pathname),'..');
-const output=process.env.LIVE_DECK_TEST_ARTIFACTS || path.join(root,'artifacts');
+const output=process.env.LIVE_DECK_TEST_ARTIFACTS || path.resolve(root,'../live-deck-monitoring-tests-20261019');
 fs.mkdirSync(output,{recursive:true});
 const server=JSON.parse(fs.readFileSync(process.env.LIVE_DECK_SERVER_INFO));
 const base=process.env.LIVE_DECK_TEST_BASE_URL || `http://127.0.0.1:${server.port}${server.base_url}`;
@@ -23,12 +23,12 @@ for(const file of ['monitoring.json','deck.json']) await page.route(`**/custom/l
 });
 const type=async (id,text)=>{
   await page.evaluate(id=>window.liveDeck.selectPanel(id),id);
-  await page.locator('#command-input').fill(text);await page.locator('#fill-command').click();await page.waitForFunction(()=>!document.getElementById('fill-command').disabled);await page.keyboard.press('Enter');
+  await page.locator('#command-input').fill(text);await page.locator('#fill-command').click();await page.keyboard.press('Enter');
 };
 try {
   await page.goto(`${base}custom/live-deck/index.html?deck=monitoring#/1`,{waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>window.liveDeck?.pool.sessions.get('runner')?.status==='ready',null,{timeout:45000});
-  await page.locator('#fill-command').click();await page.waitForFunction(()=>!document.getElementById('fill-command').disabled);await page.keyboard.press('Enter');
+  await page.locator('#fill-command').click();await page.keyboard.press('Enter');
   await page.waitForFunction(()=>window.liveDeck.runs.get('runner')?.status==='ready',null,{timeout:15000});
   const run=await page.evaluate(()=>window.liveDeck.runs.get('runner'));
   assert.match(run.fields.task_id,/^demo-\d+$/);assert.ok(run.fields.instance);

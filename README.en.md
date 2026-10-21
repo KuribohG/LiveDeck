@@ -5,7 +5,7 @@ runbooks, monitoring panels and an optional AI advisor in one presentation.
 
 The interface and full authoring documentation are currently in Chinese.
 
-[中文文档](README.md) · [Authoring reference](web/docs/AUTHORING.md) · [MIT License](LICENSE)
+[中文文档](README.md) · [Authoring reference](web/docs/AUTHORING.md) · [Studio](web/docs/STUDIO.md) · [Product API](web/docs/PRODUCT-API.md) · [MIT License](LICENSE)
 
 ## Features
 
@@ -16,6 +16,12 @@ The interface and full authoring documentation are currently in Chinese.
 - Bind dashboard URL parameters and time ranges to metadata published by a running process.
 - Ask an optional Codex-backed advisor about recent terminal output and the current plan.
   Suggestions are adopted into the command editor for review.
+- Edit the structured document in Live Deck Studio, with undo/redo, reference-aware
+  panel operations, diagnostics and an explicit apply-to-player step.
+- Inspect the effective browser state and preview, apply, validate or undo supported
+  document mutations through `window.liveDeck.productApi`.
+- Render live ECharts time series from read-only, server-side Grafana queries without
+  changing shared dashboards.
 - Import, edit and export a single JSON deck. Frontend libraries are vendored;
   there is no frontend build step or runtime CDN dependency.
 
@@ -64,9 +70,11 @@ Jupyter process environment. Python kernel `python3` must be available.
 AI credentials stay on the server. Asking a question sends the provided context,
 including recent terminal output, to your configured model service. Inspect it
 using the context preview before sending. The advisor requests a read-only
-session and disables configured MCP servers, shell tools, memory and repository
-instructions; it does not execute suggested commands in the presentation.
-Slides, terminals and dashboards work without AI configuration.
+session and can discover the user's Codex Skills through a bounded read-only file
+tool. If Grafana MCP is configured, only dashboard and datasource read tools are
+enabled. Shell tools, memory, multi-agent execution, repository instructions and
+other MCP servers are disabled. The advisor does not execute suggested commands
+in the presentation. Slides, terminals and dashboards work without AI configuration.
 
 ## Development
 
@@ -75,6 +83,7 @@ Node.js 20+ is needed for validation and browser tests, not for serving slides.
 ```bash
 npm ci
 npm test
+npm run test:studio
 python -m unittest discover -s tests -p 'test_*.py'
 node scripts/validate-deck.mjs web/examples/minimal.livedeck.json
 python scripts/verify-vendor.py

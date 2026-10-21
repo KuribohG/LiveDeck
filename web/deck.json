@@ -297,28 +297,33 @@
       "type": "slide",
       "kicker": "LIVE DEMO / GET STARTED",
       "title": "让演示，现场发生。",
-      "markdown": "讲解、运行、追问，都在同一份演示里。\n\n- **第 2 页** · 进入 Terminal 1，设置一个变量\n- **第 3 页** · 回到讲解\n- **第 4 页** · 回到同一个 Terminal 1，继续操作\n- **第 5 页** · 打开独立的 Terminal 2\n\n右上角可以编辑幻灯片和命令清单。"
+      "markdown": "讲解、运行、追问，都在同一份演示里。\n\n- **第 2 页** · 进入 Terminal 1，设置一个变量\n- **第 3 页** · 回到讲解\n- **第 4 页** · 回到同一个 Terminal 1，继续操作\n- **第 5 页** · 打开独立的 Terminal 2\n\n右上角可以编辑幻灯片和命令清单。",
+      "id": "opening"
     },
     {
       "type": "terminal",
       "terminal": "terminal-1",
-      "title": "Terminal 1 · 开始真实操作"
+      "title": "Terminal 1 · 开始真实操作",
+      "id": "terminal-1-start"
     },
     {
       "type": "slide",
       "kicker": "SAME SESSION / KEEP GOING",
       "title": "翻过一页，现场还在。",
-      "markdown": "刚才的终端会话一直保留。\n\n回到下一页，再运行 `echo \"$DEMO_MESSAGE\"`。\n\n工作目录、变量、运行中的进程和终端输出，都会继续留在 **Terminal 1**。\n\n命令清单只是提词器，你可以随时临场发挥。"
+      "markdown": "刚才的终端会话一直保留。\n\n回到下一页，再运行 `echo \"$DEMO_MESSAGE\"`。\n\n工作目录、变量、运行中的进程和终端输出，都会继续留在 **Terminal 1**。\n\n命令清单只是提词器，你可以随时临场发挥。",
+      "id": "continue-talk"
     },
     {
       "type": "terminal",
       "terminal": "terminal-1",
-      "title": "Terminal 1 · 继续刚才的现场"
+      "title": "Terminal 1 · 继续刚才的现场",
+      "id": "terminal-1-live"
     },
     {
       "type": "terminal",
       "terminal": "terminal-2",
-      "title": "Terminal 2 · 独立的另一段演示"
+      "title": "Terminal 2 · 独立的另一段演示",
+      "id": "terminal-2-live"
     }
   ]
 }

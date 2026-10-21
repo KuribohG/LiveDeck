@@ -34,7 +34,8 @@
     {
       "type": "terminal",
       "title": "前后台任务",
-      "terminal": "host"
+      "terminal": "host",
+      "id": "foreground-background"
     }
   ],
   "sequence": [
