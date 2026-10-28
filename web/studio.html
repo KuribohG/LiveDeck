@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Live Deck Studio</title>
-  <link rel="stylesheet" href="./studio.css">
+  <link rel="stylesheet" href="./studio.css?v=studio-preview-20261023">
 </head>
 <body>
   <header class="studio-header">
@@ -63,9 +63,25 @@
         </div>
         <div id="health-summary" class="health-summary">正在检查</div>
       </div>
-      <article id="page-preview" class="page-preview" aria-live="polite"></article>
+      <div id="page-preview" class="page-preview" aria-live="polite">
+        <div id="preview-stage" class="preview-stage">
+          <iframe id="player-preview" title="播放器实时预览" tabindex="-1"></iframe>
+          <form id="inline-editor" class="inline-editor" hidden>
+            <div class="inline-editor-heading">
+              <strong id="inline-editor-label">编辑</strong>
+              <span>修改会立即写回 Studio 草稿</span>
+            </div>
+            <textarea id="inline-editor-input" spellcheck="true"></textarea>
+            <div class="inline-editor-actions">
+              <button id="inline-editor-cancel" type="button" class="quiet">取消</button>
+              <button id="inline-editor-done" type="submit" class="primary">完成</button>
+            </div>
+          </form>
+        </div>
+        <div id="preview-loading" class="preview-loading">正在启动真实播放器画布…</div>
+      </div>
       <div class="preview-footnote">
-        这里是静态结构预览。真实终端、图表和运行事件会在播放器中按需连接。
+        这是真实播放器画布。点击标题、Kicker 或正文即可原位编辑；终端和网页面板显示准确布局。
       </div>
     </section>
 
@@ -88,8 +104,6 @@
   </footer>
 
   <div id="toast" class="toast" role="status" hidden></div>
-  <script src="./vendor/marked.js"></script>
-  <script src="./vendor/purify.js"></script>
-  <script type="module" src="./src/studio.js"></script>
+  <script type="module" src="./src/studio.js?v=studio-preview-20261023"></script>
 </body>
 </html>

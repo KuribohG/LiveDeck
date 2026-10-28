@@ -118,3 +118,30 @@ body.bottom-toolbar-hidden{--bottom-toolbar-height:0px}
 .timeseries-chart { position:absolute; inset:0 0 28px; min-width:0; min-height:0; }
 .chart-info { position:absolute; bottom:0; left:10px; right:10px; height:26px; line-height:26px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; color:#94a3b8; }
 .timeseries-chart ~ .chart-pending { pointer-events:none; }
+
+/* Studio renders the real player at its canonical 1200x690 canvas. */
+body.studio-preview{overflow:hidden;background:var(--bg)}
+body.studio-preview .topbar,body.studio-preview .bottom-bar,body.studio-preview .toolbar-toggle,body.studio-preview #toast,body.studio-preview dialog{display:none!important}
+body.studio-preview #stage{height:100dvh;padding:0}
+body.studio-preview .reveal .slides>section{padding:38px 52px}
+body.studio-preview .reveal .slides>section[data-page-index]{pointer-events:none!important}
+body.studio-preview .reveal .slides>section[data-page-index].present{pointer-events:auto!important}
+body.studio-preview .reveal .backgrounds,body.studio-preview .slide-background{pointer-events:none!important}
+body.studio-preview [data-studio-field]{cursor:text;border-radius:5px;transition:background .12s ease,box-shadow .12s ease}
+body.studio-preview [data-studio-field]:hover{background:#b7f5ca12;box-shadow:0 0 0 5px #b7f5ca12}
+body.studio-preview .workbench{inset:0;grid-template-rows:76px minmax(0,1fr);padding:0 38px 28px;background:var(--bg)}
+body.studio-preview .workbench-heading{padding-top:10px}
+body.studio-preview #sequence-bar,body.studio-preview .plan-panel,body.studio-preview .ai-panel{display:none!important}
+body.studio-preview .workbench-body{grid-template-columns:minmax(0,1fr);padding-bottom:0}
+body.studio-preview .terminal-column{min-height:0}
+body.studio-preview .workspace-card.studio-preview-card{cursor:pointer;border-color:#43566d}
+body.studio-preview .workspace-card.studio-preview-card:hover{border-color:#6b8d77;box-shadow:0 0 0 1px #92bfa033,0 12px 35px #0002}
+body.studio-preview .studio-preview-card .panel-toolbar{height:36px;min-height:36px}
+body.studio-preview .studio-preview-card .panel-candidate-region,body.studio-preview .studio-preview-card .panel-candidates-toggle,body.studio-preview .studio-preview-card .panel-toolbar button{display:none!important}
+body.studio-preview .studio-preview-card .panel-viewport{position:absolute;inset:36px 0 0}
+body.studio-preview .studio-panel-placeholder{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:9px;padding:28px 34px;background:radial-gradient(circle at 90% 10%,#183027 0,transparent 42%),#101722}
+body.studio-preview .studio-preview-card.web-card .studio-panel-placeholder{background:radial-gradient(circle at 10% 0,#1b2940 0,transparent 44%),#101722}
+body.studio-preview .studio-panel-placeholder .eyebrow{font-size:10px;color:var(--accent)}
+body.studio-preview .studio-panel-placeholder strong{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:22px;font-weight:560}
+body.studio-preview .studio-panel-placeholder code{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:8px 10px;border-radius:7px;background:#0b1119;color:#c8d7ec;font-size:13px}
+body.studio-preview .studio-panel-placeholder p{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:0;color:#8293a9;font-size:12px}

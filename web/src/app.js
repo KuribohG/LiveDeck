@@ -24,6 +24,183 @@ const html = text => DOMPurify.sanitize(marked.parse(text || ''));
 let deck, store, pool, advisor, workspace, sequence, runbook, runs, conversationView, currentGroup, currentIndex, editingRun, currentTerminal = null, currentSlide = null, toastTimer;
 let saveDeckCopy, filling = false, editingTab, conversationPanel = null, adoptingSuggestion = false;
 let sourceDeck, metricCatalogData, productApi;
+let previewMode = false;
+
+const STUDIO_PREVIEW = {
+  boot:'live-deck-studio:boot',
+  ready:'live-deck-studio:ready',
+  setDeck:'live-deck-studio:set-deck',
+  updateField:'live-deck-studio:update-field',
+  goTo:'live-deck-studio:go-to',
+  selectField:'live-deck-studio:select-field',
+  selectPanel:'live-deck-studio:select-panel',
+  error:'live-deck-studio:error',
+};
+
+function postStudioPreview(type, payload = {}) {
+  if (!previewMode || window.parent === window) return;
+  window.parent.postMessage({type, ...payload}, location.origin);
+}
+
+function previewStorage() {
+  const values = new Map();
+  return {
+    getItem:key => values.has(key) ? values.get(key) : null,
+    setItem:(key, value) => values.set(key, String(value)),
+    removeItem:key => values.delete(key),
+  };
+}
+
+function previewPool() {
+  return {
+    sessions:new Map(), closing:new Map(), restarting:new Map(), activeIds:new Set(),
+    resize() {},
+  };
+}
+
+function previewServices() {
+  return {
+    refresh() {},
+    pause() {},
+    timeRange() {},
+    context() { return []; },
+  };
+}
+
+function renderDeckSlides() {
+  $('slides').replaceChildren();
+  $('slide-timeline').replaceChildren();
+  deck.slides.forEach((slide, index) => {
+    const section = document.createElement('section');
+    section.id = `page-${index + 1}`;
+    section.dataset.pageIndex = String(index);
+    if (slide.type === 'slide') {
+      const kicker = document.createElement('div');
+      kicker.className = 'slide-kicker';
+      kicker.textContent = slide.kicker || `LIVE DECK / ${String(index + 1).padStart(2, '0')}`;
+      const title = document.createElement('h1');
+      title.textContent = slide.title;
+      const content = document.createElement('div');
+      content.className = 'slide-markdown';
+      content.innerHTML = html(slide.markdown);
+      const decoration = document.createElement('div');
+      decoration.className = 'slide-decoration';
+      if (previewMode) {
+        for (const [field, element, label] of [
+          ['kicker', kicker, '页眉 kicker'],
+          ['title', title, '页面标题'],
+          ['markdown', content, 'Markdown 正文'],
+        ]) {
+          element.dataset.studioField = field;
+          element.dataset.studioLabel = label;
+          element.title = `点击编辑${label}`;
+        }
+      }
+      section.append(kicker, title, content, decoration);
+    }
+    $('slides').append(section);
+    const button = document.createElement('button');
+    button.className = slide.type;
+    button.title = `${index + 1} · ${slide.title}`;
+    button.setAttribute('aria-label', `第 ${index + 1} 页：${slide.title}`);
+    button.addEventListener('click', () => Reveal.slide(index));
+    $('slide-timeline').append(button);
+  });
+}
+
+function updatePreviewField(pageIndex, field, value) {
+  const slide = deck.slides[pageIndex];
+  const section = $('slides').querySelector(`section[data-page-index="${pageIndex}"]`);
+  if (!slide || !section || !['kicker', 'title', 'markdown'].includes(field)) return false;
+  slide[field] = value;
+  if (field === 'markdown') section.querySelector('.slide-markdown').innerHTML = html(value);
+  else if (field === 'title') section.querySelector('h1').textContent = value;
+  else section.querySelector('.slide-kicker').textContent = value || `LIVE DECK / ${String(pageIndex + 1).padStart(2, '0')}`;
+  Reveal.layout();
+  return true;
+}
+
+async function waitForPreviewSlide(pageIndex) {
+  for (let attempt = 0; attempt < 40; attempt++) {
+    if (Reveal.getSlides()[pageIndex]?.classList.contains('present')) return;
+    await new Promise(resolve => setTimeout(resolve, 25));
+  }
+}
+
+function requestPreviewDeck(defaultDeck) {
+  return new Promise(resolve => {
+    const finish = value => {
+      clearTimeout(timer);
+      window.removeEventListener('message', receive);
+      resolve(value);
+    };
+    const receive = event => {
+      if (event.origin !== location.origin || event.source !== window.parent) return;
+      if (event.data?.type === STUDIO_PREVIEW.setDeck) finish(event.data);
+    };
+    const timer = setTimeout(() => finish({deck:defaultDeck, pageIndex:0}), 1200);
+    window.addEventListener('message', receive);
+    postStudioPreview(STUDIO_PREVIEW.boot);
+  });
+}
+
+async function bootStudioPreview() {
+  previewMode = true;
+  document.body.classList.add('studio-preview');
+  const requested = new URLSearchParams(location.search).get('deck');
+  const example = ['multi-panel', 'monitoring'].includes(requested) ? requested : null;
+  const defaultDeck = await (await fetch(example ? `./${example}.json` : './deck.json', {cache:'no-store'})).json();
+  const initial = await requestPreviewDeck(defaultDeck);
+  sourceDeck = structuredClone(initial.deck);
+  deck = validateDeck(initial.deck);
+  store = new DeckStore(deck, previewStorage());
+  runs = new RunContexts(store);
+  sequence = new Sequence(deck, store);
+  pool = previewPool();
+  workspace = new PanelWorkspace(
+    $('terminal-viewport'), deck, pool, store, sequence,
+    id => postStudioPreview(STUDIO_PREVIEW.selectPanel, {panelId:id}),
+    () => {}, runs, () => {}, () => {}, () => {}, {}, true,
+  );
+  workspace.charts = previewServices();
+  renderDeckSlides();
+  $('deck-title').textContent = deck.title;
+  document.title = `${deck.title} · Live Deck Studio Preview`;
+  Reveal.on('slidechanged', event => showSlide(event.indexh));
+  await Reveal.initialize({
+    controls:false, progress:false, center:false, hash:false, transition:'none',
+    width:1200, height:690, margin:0.025, keyboard:false, touch:false,
+  });
+  const initialIndex = Math.max(0, Math.min(Number(initial.pageIndex) || 0, deck.slides.length - 1));
+  showSlide(initialIndex);
+  if (Reveal.getIndices().h !== initialIndex) Reveal.slide(initialIndex);
+  await waitForPreviewSlide(initialIndex);
+  Reveal.layout();
+  window.liveDeckPreview = {goTo:index => Reveal.slide(index)};
+  window.addEventListener('message', event => {
+    if (event.origin !== location.origin || event.source !== window.parent) return;
+    const data = event.data || {};
+    try {
+      if (data.type === STUDIO_PREVIEW.setDeck) location.reload();
+      else if (data.type === STUDIO_PREVIEW.updateField) updatePreviewField(data.pageIndex, data.field, data.value);
+      else if (data.type === STUDIO_PREVIEW.goTo) Reveal.slide(Math.max(0, Math.min(Number(data.pageIndex) || 0, deck.slides.length - 1)));
+    } catch (error) {
+      postStudioPreview(STUDIO_PREVIEW.error, {message:error.message});
+    }
+  });
+  document.addEventListener('click', event => {
+    const field = event.target.closest('[data-studio-field]');
+    if (field) {
+      event.preventDefault();
+      const pageIndex = Number(field.closest('section[data-page-index]')?.dataset.pageIndex);
+      postStudioPreview(STUDIO_PREVIEW.selectField, {pageIndex, field:field.dataset.studioField, label:field.dataset.studioLabel});
+      return;
+    }
+    const panel = event.target.closest('.workspace-card[data-panel-id]');
+    if (panel) postStudioPreview(STUDIO_PREVIEW.selectPanel, {panelId:panel.dataset.panelId});
+  }, true);
+  postStudioPreview(STUDIO_PREVIEW.ready);
+}
 
 function visiblePanels() { return slidePanels(currentSlide, deck, currentGroup); }
 function stepTitle(step) { return step.group ? `监控组 → ${deck.monitorGroups[step.group].label}` : `${panelConfig(deck, step.panel).label || step.panel} → ${panelConfig(deck, step.panel).commands[step.index].title}`; }
@@ -392,6 +569,13 @@ function showSlide(index) {
   $('workspace-layout').value = currentSlide.layout || 'columns';
   $('workspace-layout').hidden = ids.length < 2;
   $('toggle-plan').hidden = ids.length < 2;
+  currentTerminal = target;
+  if (previewMode) {
+    workspace.show(ids, currentSlide.layout || 'columns', target);
+    workspace.select(target);
+    postStudioPreview(STUDIO_PREVIEW.selectPanel, {panelId:target});
+    return;
+  }
   workspace.show(ids, currentSlide.layout || 'columns', target);
   selectPanel(target); renderSequence();
 
@@ -408,6 +592,7 @@ async function boot() {
     link.onload = resolve; link.onerror = () => reject(new Error(`无法加载演示样式：${href}`));
     document.head.append(link);
   })));
+  if (new URLSearchParams(location.search).get('studioPreview') === '1') return bootStudioPreview();
   const requested = new URLSearchParams(location.search).get('deck');
   const example = ['multi-panel', 'monitoring'].includes(requested) ? requested : null;
   $('studio-link').href = `./studio.html${example ? `?deck=${encodeURIComponent(example)}` : ''}`;
@@ -496,19 +681,7 @@ async function boot() {
     toast(`已放入 ${panelConfig(deck, target).label || target} 的待执行内容`);
   }, () => store.save());
   $('deck-title').textContent = deck.title; document.title = `${deck.title} · Live Deck`;
-  deck.slides.forEach((slide, index) => {
-    const section = document.createElement('section'); section.id = `page-${index + 1}`;
-    if (slide.type === 'slide') {
-      const kicker = document.createElement('div'); kicker.className = 'slide-kicker'; kicker.textContent = slide.kicker || `LIVE DECK / ${String(index + 1).padStart(2, '0')}`;
-      const title = document.createElement('h1'); title.textContent = slide.title;
-      const content = document.createElement('div'); content.className = 'slide-markdown'; content.innerHTML = html(slide.markdown);
-      const decoration = document.createElement('div'); decoration.className = 'slide-decoration';
-      section.append(kicker, title, content, decoration);
-    }
-    $('slides').append(section);
-    const button = document.createElement('button'); button.className = slide.type; button.title = `${index + 1} · ${slide.title}`; button.setAttribute('aria-label', `第 ${index + 1} 页：${slide.title}`);
-    button.addEventListener('click', () => Reveal.slide(index)); $('slide-timeline').append(button);
-  });
+  renderDeckSlides();
   Reveal.on('slidechanged', event => showSlide(event.indexh));
   await Reveal.initialize({controls:false, progress:false, center:false, hash:true, transition:'fade',
     width:1200, height:690, margin:0.025, keyboardCondition: () => !workspace.zoomed && !$('ai-panel').classList.contains('ai-fullscreen') && !$('command-options').open && !document.querySelector('dialog[open]') && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)});

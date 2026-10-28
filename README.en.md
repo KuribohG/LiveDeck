@@ -16,8 +16,9 @@ The interface and full authoring documentation are currently in Chinese.
 - Bind dashboard URL parameters and time ranges to metadata published by a running process.
 - Ask an optional Codex-backed advisor about recent terminal output and the current plan.
   Suggestions are adopted into the command editor for review.
-- Edit the structured document in Live Deck Studio, with undo/redo, reference-aware
-  panel operations, diagnostics and an explicit apply-to-player step.
+- Edit the document inside a true player canvas in Live Deck Studio, including
+  in-place title, kicker and Markdown text editing, with undo/redo,
+  reference-aware panel operations, diagnostics and an explicit apply-to-player step.
 - Inspect the effective browser state and preview, apply, validate or undo supported
   document mutations through `window.liveDeck.productApi`.
 - Render live ECharts time series from read-only, server-side Grafana queries without

@@ -264,8 +264,7 @@ textarea { resize: vertical; }
   position: relative;
   min-height: 0;
   flex: 1;
-  overflow: auto;
-  padding: clamp(24px, 4vw, 58px);
+  overflow: hidden;
   border: 1px solid #324154;
   border-radius: 15px;
   background:
@@ -273,105 +272,76 @@ textarea { resize: vertical; }
     linear-gradient(145deg, #121b27, #0f1621);
   box-shadow: 0 25px 70px #0004;
 }
-.preview-kicker {
-  margin-bottom: 20px;
-  color: var(--accent);
-  font: 11px var(--mono);
-  letter-spacing: 3px;
+.preview-stage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1200px;
+  height: 690px;
+  overflow: hidden;
+  border: 1px solid #334357;
+  border-radius: 12px;
+  background: #0b1017;
+  box-shadow: 0 20px 80px #0008;
+  transform-origin: center center;
 }
-.page-preview h3 {
-  max-width: 900px;
-  margin: 0 0 26px;
-  font-size: clamp(32px, 4.3vw, 64px);
-  line-height: 1.08;
-  letter-spacing: -2px;
-}
-.markdown-preview {
-  max-width: 850px;
-  color: #b7c4d4;
-  font-size: clamp(16px, 1.55vw, 22px);
-  line-height: 1.72;
-}
-.markdown-preview h1, .markdown-preview h2, .markdown-preview h3 {
-  margin: 0.7em 0 0.35em;
-  color: var(--text);
-  font-size: 1.25em;
-  letter-spacing: -.3px;
-}
-.markdown-preview p { margin: 0.8em 0; }
-.markdown-preview strong { color: var(--accent); }
-.markdown-preview code {
-  padding: 2px 5px;
-  border-radius: 4px;
-  color: #cfe0f7;
-  background: #1b2635;
-  font: .8em var(--mono);
-}
-.markdown-preview pre {
-  padding: 16px;
-  overflow: auto;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: #0b121c;
-}
-.speaker-note-preview {
-  max-width: 760px;
-  margin-top: 34px;
-  padding: 12px 14px;
-  border-left: 2px solid #657b90;
-  color: #92a4ba;
-  background: #111a25;
-  font-size: 12px;
-  white-space: pre-wrap;
-}
-.speaker-note-preview strong {
+#player-preview {
   display: block;
-  margin-bottom: 4px;
-  color: #b5c4d5;
-  font-size: 10px;
+  width: 1200px;
+  height: 690px;
+  border: 0;
+  background: #0b1017;
+}
+.preview-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #9aabc0;
+  background: #0c121bdd;
+  font: 11px var(--mono);
   letter-spacing: 1px;
 }
-.panel-preview-grid {
-  min-height: 300px;
-  display: grid;
-  gap: 10px;
-  margin-top: 20px;
-}
-.panel-preview-grid.columns { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
-.panel-preview-grid.rows { grid-template-rows: repeat(auto-fit, minmax(120px, 1fr)); }
-.panel-preview-grid.focus { grid-template-columns: minmax(0, 1.6fr) minmax(170px, .8fr); }
-.panel-preview-card {
-  min-height: 130px;
+.inline-editor {
+  position: absolute;
+  z-index: 10;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  padding: 15px;
-  border: 1px solid #34465b;
-  border-radius: 10px;
-  background: #0b1320;
+  gap: 9px;
+  padding: 13px;
+  border: 1px solid #87b994;
+  border-radius: 11px;
+  background: #0d1721f5;
+  box-shadow: 0 18px 55px #000b, 0 0 0 5px #b7f5ca16;
 }
-.panel-preview-card.dashboard { border-color: #3b516d; }
-.panel-preview-card header {
+.inline-editor[hidden] { display: none !important; }
+.inline-editor-heading {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
 }
-.panel-preview-card strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.panel-kind {
-  flex-shrink: 0;
-  padding: 2px 5px;
-  border-radius: 3px;
-  color: #91adc9;
-  background: #1b2c40;
-  font: 8px var(--mono);
-  letter-spacing: 1px;
+.inline-editor-heading strong { color: var(--accent); font-size: 16px; }
+.inline-editor-heading span { color: #8193a9; font: 11px var(--mono); }
+.inline-editor textarea {
+  flex: 1;
+  min-height: 72px;
+  resize: none;
+  border-color: #3b5b46;
+  color: #edf5ee;
+  background: #0a1119;
+  font: 22px/1.35 var(--sans);
 }
-.panel-preview-card p {
-  margin: 18px 0 0;
-  color: #8698ad;
-  font: 11px/1.6 var(--mono);
-  overflow-wrap: anywhere;
+.inline-editor textarea.markdown {
+  font: 18px/1.55 var(--mono);
 }
+.inline-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+}
+.inline-editor-actions button { font-size: 14px; }
+.inline-editor-actions .primary { padding: 8px 20px; }
 .preview-footnote {
   flex: 0 0 auto;
   padding-top: 10px;

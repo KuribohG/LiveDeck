@@ -40,6 +40,11 @@ const state = {
   catalog: null,
   storageKey: null,
   temporaryTabsKey: null,
+  previewReady: false,
+  previewSignature: null,
+  previewStructureSignature: null,
+  previewDeck: null,
+  inlineEdit: null,
 };
 
 const escapeHtml = value => String(value ?? '')
@@ -76,19 +81,85 @@ function playerUrl() {
   return url.href;
 }
 
+const PREVIEW_EVENTS = {
+  boot:'live-deck-studio:boot',
+  ready:'live-deck-studio:ready',
+  setDeck:'live-deck-studio:set-deck',
+  updateField:'live-deck-studio:update-field',
+  goTo:'live-deck-studio:go-to',
+  selectField:'live-deck-studio:select-field',
+  selectPanel:'live-deck-studio:select-panel',
+  error:'live-deck-studio:error',
+};
+
+function previewFrame() {
+  return $('player-preview');
+}
+
+function postPreview(type, payload = {}, {force = false} = {}) {
+  const frame = previewFrame();
+  if ((!state.previewReady && !force) || !frame?.contentWindow) return false;
+  frame.contentWindow.postMessage({type, ...payload}, location.origin);
+  return true;
+}
+
+function layoutPreviewStage() {
+  const container = $('page-preview'), stage = $('preview-stage');
+  if (!container || !stage) return;
+  const width = Math.max(1, container.clientWidth - 40);
+  const height = Math.max(1, container.clientHeight - 40);
+  const scale = Math.min(width / 1200, height / 690);
+  stage.style.transform = `translate(-50%, -50%) scale(${scale})`;
+}
+
+function syncPreview({force = false} = {}) {
+  if (!state.previewReady) return;
+  const signature = JSON.stringify(state.deck);
+  const structure = previewStructureSignature(state.deck);
+  if (!force && signature === state.previewSignature) {
+    postPreview(PREVIEW_EVENTS.goTo, {pageIndex:state.pageIndex});
+    return;
+  }
+  if (!force && state.previewDeck && structure === state.previewStructureSignature) {
+    for (const [pageIndex, slide] of state.deck.slides.entries()) {
+      const previous = state.previewDeck.slides[pageIndex];
+      for (const field of ['kicker', 'title', 'markdown']) {
+        if ((slide[field] || '') !== (previous?.[field] || '')) {
+          postPreview(PREVIEW_EVENTS.updateField, {pageIndex, field, value:slide[field] || ''});
+        }
+      }
+    }
+    postPreview(PREVIEW_EVENTS.goTo, {pageIndex:state.pageIndex});
+    state.previewSignature = signature;
+    state.previewDeck = jsonClone(state.deck);
+    return;
+  }
+  state.previewSignature = signature;
+  state.previewStructureSignature = structure;
+  state.previewDeck = jsonClone(state.deck);
+  state.previewReady = false;
+  $('preview-loading').hidden = false;
+  $('preview-loading').textContent = '正在更新播放器画布…';
+  postPreview(PREVIEW_EVENTS.setDeck, {deck:jsonClone(state.deck), pageIndex:state.pageIndex}, {force:true});
+}
+
+function previewStructureSignature(deck) {
+  const structural = jsonClone(deck);
+  for (const slide of structural.slides || []) {
+    delete slide.kicker;
+    delete slide.title;
+    delete slide.markdown;
+    delete slide.speakerNotes;
+  }
+  return JSON.stringify(structural);
+}
+
 function selectedSlide() {
   return state.deck.slides[state.pageIndex] || state.deck.slides[0];
 }
 
 function selectedPanel() {
   return panelEntries(state.deck).find(panel => panel.id === state.panelId) || panelEntries(state.deck)[0] || null;
-}
-
-function pagePanels(slide) {
-  if (!slide) return [];
-  if (slide.type === 'terminal') return slide.terminal ? [slide.terminal] : [];
-  if (slide.type !== 'workspace') return [];
-  return [...new Set([...(slide.panels || []), ...(slide.monitorGroups || []).flatMap(group => state.deck.monitorGroups?.[group]?.panels || [])])];
 }
 
 function pageSubtitle(slide) {
@@ -184,7 +255,7 @@ function scheduleDiagnostics() {
   }, 90);
 }
 
-function changed({renderAll: fullRender = false, save = true} = {}) {
+function changed({renderAll: fullRender = false, save = true, refreshPreview = true} = {}) {
   if (save) scheduleDraftSave();
   if (fullRender) {
     refreshDiagnostics();
@@ -192,7 +263,8 @@ function changed({renderAll: fullRender = false, save = true} = {}) {
     return;
   }
   renderPageList();
-  renderPreview();
+  renderPreview({sync:refreshPreview});
+  if (!refreshPreview) renderInspector();
   renderDocumentMeta();
   renderStats();
   scheduleDiagnostics();
@@ -330,54 +402,94 @@ function renderPageList() {
     </li>`).join('');
 }
 
-function renderMarkdown(text) {
-  if (!text) return '<p class="empty-state">还没有正文内容。</p>';
-  try { return DOMPurify.sanitize(marked.parse(text)); }
-  catch { return `<p>${escapeHtml(text)}</p>`; }
-}
-
-function panelPreviewCard(panel) {
-  const config = panel.config || {};
-  const commands = Array.isArray(config.commands) ? config.commands.length : 0;
-  const detail = panel.kind === 'terminal'
-    ? `${config.cwd || '继承 Jupyter 默认目录'} · ${commands} 条命令`
-    : `${config.chart ? `时序图 · ${config.chart.metric}` : config.url || '等待选择网页'} · ${commands} 个动作`;
-  return `
-    <div class="panel-preview-card ${panel.kind}">
-      <header>
-        <span class="panel-kind">${panel.kind === 'terminal' ? 'TERMINAL' : 'WEB'}</span>
-        <strong>${escapeHtml(config.label || panel.id)}</strong>
-      </header>
-      <p>${escapeHtml(detail)}</p>
-    </div>`;
-}
-
-function renderPreview() {
+function renderPreview({sync = true} = {}) {
   const slide = selectedSlide();
   if (!slide) {
     $('preview-title').textContent = '没有页面';
-    $('page-preview').innerHTML = '<div class="empty-state">先在左侧创建一页。</div>';
     return;
   }
   $('preview-title').textContent = `${String(state.pageIndex + 1).padStart(2, '0')} · ${slide.title || '未命名页面'}`;
-  const kicker = slide.kicker ? `<div class="preview-kicker">${escapeHtml(slide.kicker)}</div>` : `<div class="preview-kicker">${escapeHtml(TYPE_LABELS[slide.type] || slide.type)}</div>`;
-  if (slide.type === 'slide') {
-    $('page-preview').innerHTML = `
-      ${kicker}
-      <h3>${escapeHtml(slide.title || '未命名页面')}</h3>
-      <div class="markdown-preview">${renderMarkdown(slide.markdown || '')}</div>
-      ${slide.speakerNotes ? `<div class="speaker-note-preview"><strong>SPEAKER NOTES</strong>${escapeHtml(slide.speakerNotes)}</div>` : ''}`;
-    return;
+  layoutPreviewStage();
+  if (sync) syncPreview();
+}
+
+function inlinePointer(pageIndex, field) {
+  return pointer('slides', pageIndex, field);
+}
+
+function closeInlineEditor({cancel = false} = {}) {
+  const current = state.inlineEdit;
+  const editor = $('inline-editor');
+  if (!current) { editor.hidden = true; return; }
+  if (cancel) {
+    setAtPointer(state.deck, inlinePointer(current.pageIndex, current.field), current.original, {emptyDelete:current.original === ''});
+    changed({renderAll:false, save:true});
+  } else {
+    changed({renderAll:false, save:true});
   }
-  const ids = pagePanels(slide);
-  const entries = ids.map(id => panelEntries(state.deck).find(panel => panel.id === id)).filter(Boolean);
-  $('page-preview').innerHTML = `
-    ${kicker}
-    <h3>${escapeHtml(slide.title || '未命名页面')}</h3>
-    <div class="panel-preview-grid ${escapeHtml(slide.layout || 'columns')}">
-      ${entries.length ? entries.map(panelPreviewCard).join('') : '<div class="empty-state">这个页面还没有可用面板。</div>'}
-    </div>
-    ${slide.speakerNotes ? `<div class="speaker-note-preview"><strong>SPEAKER NOTES</strong>${escapeHtml(slide.speakerNotes)}</div>` : ''}`;
+  state.inlineEdit = null;
+  editor.hidden = true;
+}
+
+function openInlineEditor({pageIndex, field, label}) {
+  const slide = state.deck.slides[pageIndex];
+  const frame = previewFrame();
+  if (!slide || !frame?.contentDocument || !['kicker', 'title', 'markdown'].includes(field)) return;
+  if (state.inlineEdit) closeInlineEditor();
+  const target = frame.contentDocument.querySelector(`section[data-page-index="${pageIndex}"] [data-studio-field="${field}"]`);
+  if (!target) return;
+  const rect = target.getBoundingClientRect();
+  const editor = $('inline-editor'), input = $('inline-editor-input');
+  const minHeight = field === 'markdown' ? 230 : 128;
+  const width = Math.min(900, Math.max(320, rect.width + 24));
+  const height = Math.min(560, Math.max(minHeight, rect.height + 92));
+  editor.style.left = `${Math.max(8, Math.min(rect.left - 12, 1200 - width - 8))}px`;
+  editor.style.top = `${Math.max(8, Math.min(rect.top - 12, 690 - height - 8))}px`;
+  editor.style.width = `${width}px`;
+  editor.style.height = `${height}px`;
+  $('inline-editor-label').textContent = label || {title:'页面标题', kicker:'页眉 kicker', markdown:'Markdown 正文'}[field];
+  input.value = slide[field] || '';
+  input.classList.toggle('markdown', field === 'markdown');
+  state.inlineEdit = {pageIndex, field, original:slide[field] || ''};
+  checkpoint();
+  editor.hidden = false;
+  requestAnimationFrame(() => input.focus({preventScroll:true}));
+}
+
+function editInlineValue() {
+  const current = state.inlineEdit;
+  if (!current) return;
+  const value = $('inline-editor-input').value;
+  setAtPointer(state.deck, inlinePointer(current.pageIndex, current.field), value, {emptyDelete:current.field !== 'title'});
+  changed({renderAll:false, save:true, refreshPreview:false});
+  postPreview(PREVIEW_EVENTS.updateField, {pageIndex:current.pageIndex, field:current.field, value});
+  if (state.previewDeck?.slides?.[current.pageIndex]) state.previewDeck.slides[current.pageIndex][current.field] = value;
+  state.previewSignature = JSON.stringify(state.deck);
+}
+
+function handlePreviewMessage(event) {
+  const frame = previewFrame();
+  if (!frame || event.source !== frame.contentWindow) return;
+  if (event.origin !== location.origin) return;
+  const data = event.data || {};
+  if (data.type === PREVIEW_EVENTS.boot) {
+    state.previewSignature = JSON.stringify(state.deck);
+    state.previewStructureSignature = previewStructureSignature(state.deck);
+    state.previewDeck = jsonClone(state.deck);
+    postPreview(PREVIEW_EVENTS.setDeck, {deck:jsonClone(state.deck), pageIndex:state.pageIndex}, {force:true});
+  } else if (data.type === PREVIEW_EVENTS.ready) {
+    state.previewReady = true;
+    if (JSON.stringify(state.deck) !== state.previewSignature) syncPreview();
+    else $('preview-loading').hidden = true;
+  } else if (data.type === PREVIEW_EVENTS.selectField) {
+    openInlineEditor(data);
+  } else if (data.type === PREVIEW_EVENTS.selectPanel) {
+    state.panelId = data.panelId;
+    state.inspector = 'panels';
+    renderInspector();
+  } else if (data.type === PREVIEW_EVENTS.error) {
+    toast(`预览更新失败：${data.message}`, true);
+  }
 }
 
 function renderStats() {
@@ -863,7 +975,9 @@ function handleAction(action, element) {
   const panel = selectedPanel();
   const index = Number(element.dataset.index);
   if (action === 'select-page') {
+    if (state.inlineEdit) closeInlineEditor();
     state.pageIndex = index;
+    state.inspector = 'page';
     renderAll();
   } else if (action === 'move-page') {
     const target = index + Number(element.dataset.delta);
@@ -1041,6 +1155,8 @@ function handleChange(event) {
 }
 
 function bindEvents() {
+  window.addEventListener('message', handlePreviewMessage);
+  window.addEventListener('resize', layoutPreviewStage);
   document.addEventListener('click', event => {
     const inspectorTab = event.target.closest('[data-inspector]');
     if (inspectorTab) {
@@ -1073,6 +1189,17 @@ function bindEvents() {
   $('reload-source').onclick = reloadPublishedDeck;
   $('export-deck').onclick = exportDeck;
   $('import-deck').onchange = event => event.target.files?.[0] && importDeck(event.target.files[0]);
+  $('inline-editor-input').addEventListener('input', editInlineValue);
+  $('inline-editor').onsubmit = event => { event.preventDefault(); closeInlineEditor(); };
+  $('inline-editor-cancel').onclick = () => closeInlineEditor({cancel:true});
+  $('inline-editor-input').addEventListener('keydown', event => {
+    const current = state.inlineEdit;
+    if (event.key === 'Escape') { event.preventDefault(); closeInlineEditor({cancel:true}); }
+    else if ((current?.field !== 'markdown' && event.key === 'Enter' && !event.shiftKey) || (event.key === 'Enter' && (event.metaKey || event.ctrlKey))) {
+      event.preventDefault();
+      closeInlineEditor();
+    }
+  });
 }
 
 async function boot() {
@@ -1099,9 +1226,13 @@ async function boot() {
     state.deck = safeDeck(candidate);
     state.pageIndex = 0;
     state.panelId = panelEntries(state.deck)[0]?.id || null;
+    const previewUrl = new URL('./index.html', location.href);
+    previewUrl.searchParams.set('studioPreview', '1');
+    if (example) previewUrl.searchParams.set('deck', example);
     refreshDiagnostics();
     bindEvents();
     renderAll();
+    $('player-preview').src = previewUrl.href;
     $('save-status').textContent = draft?.savedAtMs
       ? `已载入草稿 · ${new Date(draft.savedAtMs).toLocaleString()}`
       : live ? '已载入播放器中的浏览器副本' : '已载入发布文稿';

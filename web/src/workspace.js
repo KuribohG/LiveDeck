@@ -5,12 +5,13 @@ import {MAIN_TAB, terminalTabs, hasTerminalTab, terminalSessionId} from './tabs.
 
 /** Cards and their iframes stay mounted, including when a slide is off stage. */
 export class PanelWorkspace {
-  constructor(root, deck, pool, store, sequence, onSelect, onError, runs, onEditRun, onEditTab, onCloseTab, temporaryTabs = {}) {
+  constructor(root, deck, pool, store, sequence, onSelect, onError, runs, onEditRun, onEditTab, onCloseTab, temporaryTabs = {}, preview = false) {
     Object.assign(this, {root, deck, pool, store, sequence, onSelect, onError, runs, onEditRun, onEditTab, onCloseTab, temporaryTabs});
+    this.preview = preview;
     this.cards = new Map(); this.visible = [];
     document.addEventListener('keydown', event => { if (event.key === 'Escape' && this.zoomed) { this.zoom(null); event.stopPropagation(); } }, true);
   }
-  create(id, connect = true) {
+  create(id, connect = !this.preview) {
     const config = panelConfig(this.deck, id), isWeb = Object.hasOwn(this.deck.dashboards || {}, id);
     const card = document.createElement('article'); card.className = 'workspace-card'; card.dataset.panelId = id;
     const toolbar = document.createElement('div'); toolbar.className = 'panel-toolbar';
@@ -28,6 +29,32 @@ export class PanelWorkspace {
     candidateRegion.append(candidateHeader, list);
     card.append(toolbar, viewport, candidateRegion); this.root.append(card);
     const entry = {card, toolbar, viewport, status, search, runbook, candidateRegion, isWeb}; this.cards.set(id, entry);
+    if (this.preview) {
+      card.classList.add('studio-preview-card');
+      if (isWeb) card.classList.add('web-card');
+      status.textContent = isWeb ? (config.chart ? '时序图' : '网页') : '终端';
+      const placeholder = document.createElement('div');
+      placeholder.className = 'studio-panel-placeholder';
+      const kind = document.createElement('span');
+      kind.className = 'eyebrow';
+      kind.textContent = isWeb ? 'WEB PANEL' : 'TERMINAL';
+      const label = document.createElement('strong');
+      label.textContent = config.label || id;
+      const detail = document.createElement('p');
+      if (isWeb) detail.textContent = config.chart ? `Live Deck 时序图 · ${config.chart.metric}` : config.url || '等待图表链接';
+      else {
+        const command = config.commands?.[0]?.command || '等待执行命令';
+        detail.textContent = `${config.commands?.length || 0} 条候选命令 · ${config.cwd || 'Jupyter 默认目录'}`;
+        const prompt = document.createElement('code');
+        prompt.textContent = `$ ${command}`;
+        placeholder.append(kind, label, prompt, detail);
+        viewport.append(placeholder);
+        return entry;
+      }
+      placeholder.append(kind, label, detail);
+      viewport.append(placeholder);
+      return entry;
+    }
     const zoom = document.createElement('button'); zoom.className = 'panel-zoom'; zoom.textContent = '全屏'; zoom.setAttribute('aria-label', `全屏 ${config.label || id}`);
     zoom.onclick = () => this.zoom(this.zoomed === id ? null : id); toolbar.append(zoom); entry.zoom = zoom;
     if (isWeb) {
@@ -263,6 +290,7 @@ export class PanelWorkspace {
     for (const [key, entry] of this.cards) entry.card.classList.toggle('selected-panel', key === id);
   }
   update() {
+    if (this.preview) return;
     for (const id of this.visible) {
       const entry = this.cards.get(id), config = panelConfig(this.deck, id);
       const nextIndex = this.sequence.next?.panel === id ? this.sequence.next.index : -1;
